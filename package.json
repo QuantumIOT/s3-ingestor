@@ -1,0 +1,23 @@
+{
+  "name": "s3-ingestor",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/quantumiot/s3-ingestor.git"
+  },
+  "keywords": [
+    "AWS",
+    "S3"
+  ],
+  "author": "Steve Emmons",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/quantumiot/s3-ingestor/issues"
+  },
+  "homepage": "https://github.com/quantumiot/s3-ingestor",
+  "dependencies": {
+    "aws-sdk": "^2.3.3",
+    "glob": "^7.0.3",
+    "lodash": "^4.10.0"
+  }
+}
