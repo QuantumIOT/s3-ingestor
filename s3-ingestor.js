@@ -142,10 +142,9 @@ function performHostAction(action,context){
     });
 }
 
-var lastUpload = undefined;
+var lastSeenList = {};
 
 function uploadFiles(context){
-    var currentUpload = new Date().valueOf();
     return new Promise(function(resolve,reject){
         logger.debug('begin uploading files...');
 
@@ -166,15 +165,16 @@ function uploadFiles(context){
         function processOneFile(filename){
             var key = undefined;
             var stats = fs.statSync(filename);
+            var lastSeen = lastSeenList[filename];
             if (stats.isDirectory())
                 _.defer(processNextFile);
-            else if (lastUpload && stats.mtime.valueOf() < lastUpload) {
+            else if (!(key = buildkey(filename))) {
+                context.result.ignored++;
+                logger.debug(function () { return '... ignore: ' + filename });
+                _.defer(processNextFile);
+            } else if (lastSeen && stats.mtime.valueOf() == lastSeen.mtime.valueOf() && stats.size == lastSeen.size) {
                 context.result.unchanged++;
                 logger.debug(function(){return '... unchanged: ' + filename});
-                _.defer(processNextFile);
-            } else if (!(key = buildkey(filename))) {
-                context.result.ignored++;
-                logger.debug(function(){return '... ignore: ' + filename});
                 _.defer(processNextFile);
             } else {
                 s3.listObjects({Bucket: config.s3_bucket,Prefix: key},function(err,data){
@@ -183,6 +183,7 @@ function uploadFiles(context){
                     else if (data.Contents.length > 0 && data.Contents[0].Size === stats.size) {
                         context.result.skipped++;
                         logger.debug(function(){return '... skip: ' + filename + ' => ' + key});
+                        lastSeenList[filename] = stats;
                         _.defer(processNextFile);
                     } else {
                         var update = data.Contents.length > 0;
@@ -193,8 +194,10 @@ function uploadFiles(context){
                         s3.upload({Bucket: config.s3_bucket,Key: key,Body: stream},function(err,data){
                             if (err)
                                 reject(err);
-                            else
+                            else {
+                                lastSeenList[filename] = stats;
                                 _.defer(processNextFile);
+                            }
                         });
                     }
                 });
@@ -228,7 +231,6 @@ function uploadFiles(context){
                 processOnePolicy(policies.shift());
             else {
                 logger.debug('end uploading files');
-                lastUpload = currentUpload;
                 resolve(null);
             }
         }
@@ -276,7 +278,7 @@ emitter.on('startup',function(){
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(interfaces));
 
-        lastUpload = undefined;
+        lastSeenList = {};
         emitter.emit('phonehome','wakeup');
     });
 
