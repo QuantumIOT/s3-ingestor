@@ -163,45 +163,50 @@ function uploadFiles(context){
         }
 
         function processOneFile(filename){
-            var key = undefined;
-            var stats = fs.statSync(filename);
-            var lastSeen = lastSeenList[filename];
-            if (stats.isDirectory())
-                _.defer(processNextFile);
-            else if (!(key = buildkey(filename))) {
-                context.result.ignored++;
-                logger.debug(function () { return '... ignore: ' + filename });
-                _.defer(processNextFile);
-            } else if (lastSeen && stats.mtime.valueOf() == lastSeen.mtime.valueOf() && stats.size == lastSeen.size) {
-                context.result.unchanged++;
-                logger.debug(function(){return '... unchanged: ' + filename});
-                _.defer(processNextFile);
-            } else {
-                s3.listObjects({Bucket: config.s3_bucket,Prefix: key},function(err,data){
-                    if (err)
-                        reject(err);
-                    else if (data.Contents.length > 0 && data.Contents[0].Size === stats.size) {
-                        context.result.skipped++;
-                        logger.debug(function(){return '... skip: ' + filename + ' => ' + key});
-                        lastSeenList[filename] = stats;
-                        _.defer(processNextFile);
-                    } else {
-                        var update = data.Contents.length > 0;
-                        context.result[update ? 'updated' : 'added']++;
-                        logger.debug(function(){return (update ? '... update: ' : '... add: ') + filename + ' => ' + key});
-                        var stream = fs.createReadStream(filename);
-                        stream.on('error',function(){ stream.emit('end'); });
-                        s3.upload({Bucket: config.s3_bucket,Key: key,Body: stream},function(err,data){
-                            if (err)
-                                reject(err);
-                            else {
-                                lastSeenList[filename] = stats;
-                                _.defer(processNextFile);
-                            }
-                        });
-                    }
-                });
-            }
+            fs.stat(filename,function(err,stats){
+                if (err) {
+                    logger.error('SKIP ERROR: ' + err);
+                    return _.defer(processNextFile);
+                }
+                var key = undefined;
+                var lastSeen = lastSeenList[filename];
+                if (stats.isDirectory())
+                    _.defer(processNextFile);
+                else if (!(key = buildkey(filename))) {
+                    context.result.ignored++;
+                    logger.debug(function () { return '... ignore: ' + filename });
+                    _.defer(processNextFile);
+                } else if (lastSeen && stats.mtime.valueOf() == lastSeen.mtime.valueOf() && stats.size == lastSeen.size) {
+                    context.result.unchanged++;
+                    logger.debug(function(){return '... unchanged: ' + filename});
+                    _.defer(processNextFile);
+                } else {
+                    s3.listObjects({Bucket: config.s3_bucket,Prefix: key},function(err,data){
+                        if (err)
+                            reject(err);
+                        else if (data.Contents.length > 0 && data.Contents[0].Size === stats.size) {
+                            context.result.skipped++;
+                            logger.debug(function(){return '... skip: ' + filename + ' => ' + key});
+                            lastSeenList[filename] = stats;
+                            _.defer(processNextFile);
+                        } else {
+                            var update = data.Contents.length > 0;
+                            context.result[update ? 'updated' : 'added']++;
+                            logger.debug(function(){return (update ? '... update: ' : '... add: ') + filename + ' => ' + key});
+                            var stream = fs.createReadStream(filename);
+                            stream.on('error',function(){ stream.emit('end'); });
+                            s3.upload({Bucket: config.s3_bucket,Key: key,Body: stream},function(err,data){
+                                if (err)
+                                    reject(err);
+                                else {
+                                    lastSeenList[filename] = stats;
+                                    _.defer(processNextFile);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
         }
 
         function processNextFile(){
