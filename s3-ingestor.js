@@ -24,10 +24,10 @@ function phoneHome(action){
 
     var interfaces = readInterfaces();
     if (!interfaces) {
-        logger.debug('skip phone home - interfaces not available...');
+        logger.message('skip phone home - interfaces not available...');
         setCheckTimer();
     } else {
-        logger.debug('phone home: ' + action);
+        logger.message('phone home: ' + action);
 
         var context = readContext();
         context.version = VERSION;
@@ -192,7 +192,7 @@ function uploadFiles(context){
                         } else {
                             var update = data.Contents.length > 0;
                             context.result[update ? 'updated' : 'added']++;
-                            logger.debug(function(){return (update ? '... update: ' : '... add: ') + filename + ' => ' + key});
+                            logger.message(function(){return (update ? '... update: ' : '... add: ') + filename + ' => ' + key});
                             var stream = fs.createReadStream(filename);
                             stream.on('error',function(){ stream.emit('end'); });
                             s3.upload({Bucket: config.s3_bucket,Key: key,Body: stream},function(err,data){
@@ -278,7 +278,7 @@ emitter.on('startup',function(){
         interfaces.state = context.state || 'unknown';
         interfaces.version = VERSION;
 
-        logger.debug(function(){ return 'wakeup ' + JSON.stringify(interfaces);});
+        logger.message(function(){ return 'wakeup ' + JSON.stringify(interfaces);});
 
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(interfaces));
