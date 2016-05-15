@@ -146,7 +146,7 @@ var lastSeenList = {};
 
 function uploadFiles(context){
     return new Promise(function(resolve,reject){
-        logger.debug('begin uploading files...');
+        logger.message('begin uploading files...');
 
         var s3 = configureS3();
         var policies = _.clone(config.policies);
@@ -235,7 +235,7 @@ function uploadFiles(context){
             if (policies.length > 0)
                 processOnePolicy(policies.shift());
             else {
-                logger.debug('end uploading files');
+                logger.message('end uploading files');
                 resolve(null);
             }
         }
