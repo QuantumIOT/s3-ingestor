@@ -192,7 +192,7 @@ function uploadFiles(context){
                         } else {
                             var update = data.Contents.length > 0;
                             context.result[update ? 'updated' : 'added']++;
-                            logger.message(function(){return (update ? '... update: ' : '... add: ') + filename + ' => ' + key});
+                            logger.message((update ? '... update: ' : '... add: ') + filename + ' => ' + key);
                             var stream = fs.createReadStream(filename);
                             stream.on('error',function(){ stream.emit('end'); });
                             s3.upload({Bucket: config.s3_bucket,Key: key,Body: stream},function(err,data){
@@ -278,7 +278,7 @@ emitter.on('startup',function(){
         interfaces.state = context.state || 'unknown';
         interfaces.version = VERSION;
 
-        logger.message(function(){ return 'wakeup ' + JSON.stringify(interfaces);});
+        logger.message('wakeup ' + JSON.stringify(interfaces));
 
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(interfaces));
