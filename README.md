@@ -21,4 +21,6 @@ the default is to use the local filename/path as part of the key...
 
 [MORE HERE]
 
-To run on Windows as a server, consider https://github.com/jon-hall/pm2-windows-service
+To run on Windows as a service, consider https://github.com/jon-hall/pm2-windows-service
+
+To install nodeJS on Windows, consider https://nodejs.org/en/download/
