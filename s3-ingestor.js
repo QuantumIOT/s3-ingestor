@@ -1,6 +1,7 @@
 var _ = require('lodash');
 var fs = require('fs');
 var os = require('os');
+var process = require('process');
 var http = require('http');
 var glob = require('glob');
 var events = require('events');
@@ -219,7 +220,7 @@ function uploadFiles(context){
         function processOnePolicy(policy){
             currentPolicy = policy;
 
-            if (typeof(currentPolicy.customizer) === 'string') currentPolicy.customizer = require('./customizers/' + currentPolicy.customizer);
+            if (typeof(currentPolicy.customizer) === 'string') currentPolicy.customizer = require(process.cwd() + '/customizers/' + currentPolicy.customizer);
 
             glob(currentPolicy.input_file_pattern,function(err,files){
                 if (err)
