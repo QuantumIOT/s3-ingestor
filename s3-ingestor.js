@@ -23,9 +23,9 @@ var checkTimer = undefined;
 function phoneHome(action){
     clearCheckTimer();
 
-    var interfaces = readInterfaces();
-    if (!interfaces) {
-        logger.message('skip phone home - interfaces not available...');
+    var info = readLocalInfo();
+    if (!info) {
+        logger.message('skip phone home - info not available...');
         setCheckTimer();
     } else {
         logger.message('phone home: ' + action);
@@ -33,11 +33,7 @@ function phoneHome(action){
         var context = readContext();
         context.version = VERSION;
         context.action = action;
-
-        context.lan = interfaces.lan;
-        context.wan = interfaces.wan;
-
-        console.log(interfaces);
+        context.info = info;
 
         (context.state === 'configured' ? uploadFiles(context) : passThroughPromise()).catch(logPhoneHomeError).then(function(data){
             contactHost(context).catch(logPhoneHomeError).then(function(output){
@@ -81,9 +77,17 @@ function setCheckTimer(){
     checkTimer = setTimeout(function (){emitter.emit('phonehome','heartbeat');},config.heartbeat_period * 1000);
 }
 
-function readInterfaces(){
-    var interfaces = os.networkInterfaces();
-    return {'lan': findFirstMAC(interfaces[config.lan_port]), 'wan': findFirstMAC(interfaces[config.wan_port])}
+function readLocalInfo(){
+
+    return {
+        hostname:   os.hostname(),
+        hosttype:   os.type(),
+        platform:   os.platform(),
+        release:    os.release(),
+        freemem:    os.freemem(),
+        totalmem:   os.totalmem(),
+        network:    os.networkInterfaces()
+    };
 }
 
 function findFirstMAC(options){
@@ -112,7 +116,6 @@ function contactHost(context){
             'Content-Length' : Buffer.byteLength(contextJSON,'utf8')
         }
     };
-    console.log(options);
     return new Promise(function(resolve,reject){
         logger.debug(function() { return 'host input: ' + contextJSON; });
         var request = hostService.request(options,function(response){
@@ -136,8 +139,19 @@ function performHostAction(action,context){
     return new Promise(function(resolve,reject){
         context.action = action;
         contactHost(context)
-            .then(function(){
-                resolve(null); // TODO figure this out...
+            .then(function(output){
+                switch (output.action){
+                    case 'allconfig':
+                        context.result = config;
+                        contactHost(context).then(resolve).catch(reject);
+                        break;
+                    case 'policies':
+                        context.result = config.policies;
+                        contactHost(context).then(resolve).catch(reject);
+                        break;
+                    default:
+                        resolve(null);
+                }
             })
             .catch(reject);
     });
@@ -275,14 +289,14 @@ emitter.on('startup',function(){
 
     var apiServer = http.createServer(function(req,res) {
         var context = readContext();
-        var interfaces = readInterfaces();
-        interfaces.state = context.state || 'unknown';
-        interfaces.version = VERSION;
+        var info = readLocalInfo();
+        info.state = context.state || 'unknown';
+        info.version = VERSION;
 
-        logger.message('wakeup ' + JSON.stringify(interfaces));
+        logger.message('wakeup ' + JSON.stringify(info));
 
         res.writeHead(200, {'Content-Type': 'text/json'});
-        res.end(JSON.stringify(interfaces));
+        res.end(JSON.stringify(info));
 
         lastSeenList = {};
         emitter.emit('phonehome','wakeup');
