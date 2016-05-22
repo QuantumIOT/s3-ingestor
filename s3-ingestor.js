@@ -230,7 +230,10 @@ function uploadFiles(context){
         function buildkey(filename){
             var suffix = helpers.trimPrefix(filename,currentPolicy.input_remove_prefix || '');
 
-            if (typeof(currentPolicy.customizer) === 'function') suffix = currentPolicy.customizer(suffix,config);
+            if (typeof(currentPolicy.customizer) === 'function')
+                suffix = currentPolicy.customizer(suffix,config);
+            else if (currentPolicy.customizer)
+                suffix = null;
 
             return suffix ? (currentPolicy.output_key_prefix || '') + suffix : null;
         }
