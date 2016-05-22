@@ -294,7 +294,7 @@ function uploadFiles(context){
 
             if (typeof(currentPolicy.customizer) === 'string') {
                 var customizerPath = process.cwd() + '/customizers/' + currentPolicy.customizer;
-                if (fs.existsSync(customizerPath + 'js')) currentPolicy.customizer = require(customizerPath);
+                if (fs.existsSync(customizerPath + '.js')) currentPolicy.customizer = require(customizerPath);
             }
 
             glob(currentPolicy.input_file_pattern || '**/*',function(err,files){
