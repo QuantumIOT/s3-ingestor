@@ -151,6 +151,7 @@ function downloadCustomizers(context,resolve,reject){
     var s3 = configureS3();
 
     function reportError(err){
+        logger.error('download customizers error - ' + err)
         context.action = 'error';
         context.error = err;
         contactHost(context).then(resolve).catch(reject);
