@@ -335,6 +335,7 @@ var s3;
 
 function resetS3(aws_keys){
     s3 = undefined;
+    delete config.settings.aws_keys;
     helpers.saveJSON(config.settings.aws_keys_file,config.settings.aws_keys = aws_keys);
 }
 
