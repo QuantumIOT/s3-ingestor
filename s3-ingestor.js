@@ -231,7 +231,7 @@ function uploadFiles(context){
             var suffix = helpers.trimPrefix(filename,currentPolicy.input_remove_prefix || '');
 
             if (typeof(currentPolicy.customizer) === 'function')
-                suffix = currentPolicy.customizer(suffix,config);
+                suffix = currentPolicy.customizer(suffix,config.settings);
             else if (currentPolicy.customizer)
                 suffix = null;
 
