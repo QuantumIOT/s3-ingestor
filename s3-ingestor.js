@@ -50,15 +50,15 @@ function phoneHome(action){
                 var oldState = context.state;
                 helpers.saveJSON(CONTEXT_FILE,context = output);
 
-                if (aws_keys) resetS3(aws_keys);
                 if (newSettings) config.update(newSettings);
-
-                if (action)
-                    performHostAction(action,context).then(setCheckTimer).catch(logPhoneHomeError);
-                else if (context.state === oldState)
-                    setCheckTimer();
-                else
-                    considerUploadAction(context,setCheckTimer,logPhoneHomeError);
+                optionallyResetS3(aws_keys,function(){
+                    if (action)
+                        performHostAction(action,context).then(setCheckTimer).catch(logPhoneHomeError);
+                    else if (context.state === oldState)
+                        setCheckTimer();
+                    else
+                        considerUploadAction(context,setCheckTimer,logPhoneHomeError);
+                });
             });
         });
     }
@@ -258,7 +258,6 @@ function uploadFiles(context){
                     logger.debug(function(){return '... unchanged: ' + filename});
                     _.defer(processNextFile);
                 } else {
-                    logger.debug(function(){ return 'check object ' + config.settings.s3_bucket + '/' + key});
                     s3.listObjects({Bucket: config.settings.s3_bucket,Prefix: key},function(err,data){
                         if (err)
                             recordError(err);
@@ -335,18 +334,20 @@ function passThroughPromise(){
 
 var s3 = undefined;
 
-function resetS3(aws_keys){
-    s3 = undefined;
-    helpers.saveJSON(config.settings.aws_keys_file,config.settings.aws_keys = aws_keys);
+function optionallyResetS3(aws_keys,callback){
+    if (!aws_keys)
+        callback();
+    else {
+        s3 = undefined;
+        helpers.saveJSON(config.settings.aws_keys_file,config.settings.aws_keys = aws_keys);
+        setTimeout(callback,config.settings.s3_reset_period * 1000)
+    }
 
-    logger.debug(function(){ return 'reset S3: ' + JSON.stringify(config.settings.aws_keys); })
 }
 
 function configureS3(){
     if (!s3) {
         if (!config.settings.aws_keys) config.settings.aws_keys = helpers.readJSON(config.settings.aws_keys_file,{},{});
-
-        logger.debug(function(){ return 'configure S3: ' + JSON.stringify(config.settings.aws_keys); })
 
         s3 = new aws.S3({credentials: new aws.Credentials(config.settings.aws_keys.access_key_id,config.settings.aws_keys.secret_access_key)});
     }
