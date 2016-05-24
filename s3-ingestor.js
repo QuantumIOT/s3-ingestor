@@ -224,6 +224,7 @@ function uploadFiles(context){
         context.result = {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0};
 
         function recordError(err){
+            context.state = 'error';
             context.result.error = err;
             reject(err);
         }
