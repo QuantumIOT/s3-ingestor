@@ -151,7 +151,7 @@ function downloadCustomizers(context,resolve,reject){
     var s3 = configureS3();
 
     function reportError(err){
-        logger.error('download customizers error - ' + err)
+        logger.error('download customizers error - ' + err);
         context.action = 'error';
         context.error = err;
         contactHost(context).then(resolve).catch(reject);
@@ -258,6 +258,7 @@ function uploadFiles(context){
                     logger.debug(function(){return '... unchanged: ' + filename});
                     _.defer(processNextFile);
                 } else {
+                    logger.debug(function(){ return 'check object ' + config.settings.s3_bucket + '/' + key});
                     s3.listObjects({Bucket: config.settings.s3_bucket,Prefix: key},function(err,data){
                         if (err)
                             recordError(err);
@@ -332,17 +333,20 @@ function passThroughPromise(){
 
 //-------------- AWS functions
 
-var s3;
+var s3 = undefined;
 
 function resetS3(aws_keys){
     s3 = undefined;
-    delete config.settings.aws_keys;
     helpers.saveJSON(config.settings.aws_keys_file,config.settings.aws_keys = aws_keys);
+
+    logger.debug(function(){ return 'reset S3: ' + JSON.stringify(config.settings.aws_keys); })
 }
 
 function configureS3(){
     if (!s3) {
         if (!config.settings.aws_keys) config.settings.aws_keys = helpers.readJSON(config.settings.aws_keys_file,{},{});
+
+        logger.debug(function(){ return 'configure S3: ' + JSON.stringify(config.settings.aws_keys); })
 
         s3 = new aws.S3({credentials: new aws.Credentials(config.settings.aws_keys.access_key_id,config.settings.aws_keys.secret_access_key)});
     }
