@@ -152,7 +152,7 @@ function downloadCustomizers(context,resolve,reject){
 
     function reportError(err){
         logger.error('download customizers error - ' + err);
-        context.action = 'error';
+        context.action = context.action ? context.action + '+error' : 'error';
         context.error = err;
         contactHost(context).then(resolve).catch(reject);
     }
@@ -198,7 +198,7 @@ function considerUploadAction(context, resolve, reject){
 function upgradeSelf(context,resolve,reject){
     child_process.exec(config.settings.upgrade_command,function(error,stdout,stderr) {
         if (error) {
-            context.action = 'error';
+            context.action = context.action ? context.action + '+error' : 'error';
             context.error = error;
         }
 
@@ -224,8 +224,8 @@ function uploadFiles(context){
         context.result = {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0};
 
         function recordError(err){
-            context.state = 'error';
-            context.result.error = err;
+            context.action = context.action ? context.action + '+error' : 'error';
+            context.error = err;
             reject(err);
         }
 
