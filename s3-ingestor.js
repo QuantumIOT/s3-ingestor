@@ -35,8 +35,8 @@ function phoneHome(action){
         context.version = VERSION;
         context.action = action;
         context.info = info;
-
-        (context.state === 'configured' ? uploadFiles(context) : passThroughPromise()).catch(logPhoneHomeError).then(function(data){
+        
+        function respondToPhoneHome(){
             contactHost(context).catch(logPhoneHomeError).then(function(output){
                 var aws_keys = output.aws_keys;
                 delete output.aws_keys;
@@ -60,7 +60,9 @@ function phoneHome(action){
                         considerUploadAction(context,setCheckTimer,logPhoneHomeError);
                 });
             });
-        });
+        }
+
+        (context.state === 'configured' ? uploadFiles(context) : passThroughPromise()).catch(respondToPhoneHome).then(respondToPhoneHome);
     }
 }
 
