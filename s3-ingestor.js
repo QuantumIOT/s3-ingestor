@@ -341,8 +341,8 @@ function optionallyResetS3(aws_keys,callback){
     else {
         s3 = undefined;
         helpers.saveJSON(config.settings.aws_keys_file,config.settings.aws_keys = aws_keys);
-        logger.message('waiting for AWS keys to become valid...');
-        setTimeout(callback,config.settings.s3_reset_period * 1000)
+        logger.message('waiting for IAM keys to become valid...');
+        setTimeout(callback,config.settings.iam_reset_period * 1000)
     }
 
 }
@@ -351,7 +351,10 @@ function configureS3(){
     if (!s3) {
         if (!config.settings.aws_keys) config.settings.aws_keys = helpers.readJSON(config.settings.aws_keys_file,{},{});
 
-        s3 = new aws.S3({credentials: new aws.Credentials(config.settings.aws_keys.access_key_id,config.settings.aws_keys.secret_access_key)});
+        s3 = new aws.S3({
+            credentials: new aws.Credentials(config.settings.aws_keys.access_key_id,config.settings.aws_keys.secret_access_key),
+            httpOptions: {timeout: config.settings.s3_timeout}
+        });
     }
     return s3;
 }
