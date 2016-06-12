@@ -1,6 +1,8 @@
 var _ = require('lodash');
 var fs = require('fs');
 var os = require('os');
+var process = require('process');
+var child_process = require('child_process');
 var http = require('http');
 var glob = require('glob');
 var events = require('events');
@@ -11,7 +13,7 @@ var logger = require('./lib/logger');
 var config = require ('./lib/config');
 
 var CONTEXT_FILE = 's3-ingestor-context.json';
-var VERSION = helpers.readJSON('package.json',{version: 'UNKNOWN'},{version: 'ERROR'}).version;
+var VERSION = helpers.readJSON(__dirname + '/package.json',{version: 'UNKNOWN'},{version: 'ERROR'}).version;
 
 var emitter = new events.EventEmitter();
 
@@ -22,9 +24,9 @@ var checkTimer = undefined;
 function phoneHome(action){
     clearCheckTimer();
 
-    var interfaces = readInterfaces();
-    if (!interfaces) {
-        logger.message('skip phone home - interfaces not available...');
+    var info = readLocalInfo(action == 'startup');
+    if (!info) {
+        logger.message('skip phone home - info not available...');
         setCheckTimer();
     } else {
         logger.message('phone home: ' + action);
@@ -32,16 +34,15 @@ function phoneHome(action){
         var context = readContext();
         context.version = VERSION;
         context.action = action;
-
-        context.lan = interfaces.lan;
-        context.wan = interfaces.wan;
-
-        console.log(interfaces);
-
-        (context.state === 'configured' ? uploadFiles(context) : passThroughPromise()).catch(logPhoneHomeError).then(function(data){
+        context.info = info;
+        
+        function respondToPhoneHome(){
             contactHost(context).catch(logPhoneHomeError).then(function(output){
                 var aws_keys = output.aws_keys;
                 delete output.aws_keys;
+
+                var newSettings = output.config;
+                delete output.config;
 
                 action = output.action;
                 delete output.action;
@@ -49,19 +50,19 @@ function phoneHome(action){
                 var oldState = context.state;
                 helpers.saveJSON(CONTEXT_FILE,context = output);
 
-                if (aws_keys) resetS3(aws_keys);
-
-                if (action)
-                    performHostAction(action,context).then(setCheckTimer).catch(logPhoneHomeError);
-                else if (context.state === oldState)
-                    setCheckTimer();
-                else
-                    uploadFiles(context).catch(logPhoneHomeError).then(function(data){
-                        context.action = 'upload';
-                        contactHost(context).then(setCheckTimer).catch(logPhoneHomeError);
-                    });
+                if (newSettings) config.update(newSettings);
+                optionallyResetS3(aws_keys,function(){
+                    if (action)
+                        performHostAction(action,context).then(setCheckTimer).catch(logPhoneHomeError);
+                    else if (context.state === oldState)
+                        setCheckTimer();
+                    else
+                        considerUploadAction(context,setCheckTimer,logPhoneHomeError);
+                });
             });
-        });
+        }
+
+        (context.state === 'configured' ? uploadFiles(context) : passThroughPromise()).catch(respondToPhoneHome).then(respondToPhoneHome);
     }
 }
 
@@ -77,41 +78,39 @@ function clearCheckTimer(){
 
 function setCheckTimer(){
     clearCheckTimer();
-    checkTimer = setTimeout(function (){emitter.emit('phonehome','heartbeat');},config.heartbeat_period * 1000);
+    checkTimer = setTimeout(function (){emitter.emit('phonehome','heartbeat');},config.settings.heartbeat_period * 1000);
 }
 
-function readInterfaces(){
-    var interfaces = os.networkInterfaces();
-    return {'lan': findFirstMAC(interfaces[config.lan_port]), 'wan': findFirstMAC(interfaces[config.wan_port])}
-}
+function readLocalInfo(allInfo){
 
-function findFirstMAC(options){
-    var result = undefined;
-    _.each(options,function(option,index){
-        if (!result && option.mac) result = option;
-    });
-    return result;
+    return !allInfo ? {hostname: os.hostname()} : {
+        hostname:   os.hostname(),
+        hosttype:   os.type(),
+        platform:   os.platform(),
+        release:    os.release(),
+        totalmem:   os.totalmem(),
+        network:    os.networkInterfaces()
+    };
 }
 
 function readContext(){
     return helpers.readJSON(CONTEXT_FILE,{'state': 'unregistered'},{'state': 'error'});
 }
 
-var hostService = require(config.host_service);
+var hostService = require(config.settings.host_service);
 
 function contactHost(context){
     var contextJSON = JSON.stringify({context: context});
     var options = {
-        host : config.host_dns,
-        port : config.host_port,
-        path : config.host_uri,
+        host : config.settings.host_dns,
+        port : config.settings.host_port,
+        path : config.settings.host_uri,
         method : 'POST',
         headers : {
             'Content-Type' : 'application/json',
             'Content-Length' : Buffer.byteLength(contextJSON,'utf8')
         }
     };
-    console.log(options);
     return new Promise(function(resolve,reject){
         logger.debug(function() { return 'host input: ' + contextJSON; });
         var request = hostService.request(options,function(response){
@@ -133,12 +132,84 @@ function contactHost(context){
 function performHostAction(action,context){
     logger.message('perform host action: ' + action);
     return new Promise(function(resolve,reject){
+        context.version = VERSION;
         context.action = action;
-        contactHost(context)
-            .then(function(){
-                resolve(null); // TODO figure this out...
-            })
-            .catch(reject);
+        context.info = readLocalInfo();
+        switch (action){
+            case 'report':
+                context.result = config;
+                break;
+            case 'customizers':
+                return downloadCustomizers(context,resolve,reject);
+            case 'upgrade':
+                return upgradeSelf(context,resolve,reject);
+        }
+        contactHost(context).then(resolve).catch(reject);
+    });
+}
+
+function downloadCustomizers(context,resolve,reject){
+    var contents = [];
+    var s3 = configureS3();
+
+    function reportError(err){
+        logger.error('download customizers error - ' + err);
+        context.action = context.action ? context.action + '+error' : 'error';
+        context.error = err;
+        contactHost(context).then(resolve).catch(reject);
+    }
+
+    function processNextFile(){
+        if (contents.length === 0) return considerUploadAction(context,resolve,reject);
+
+        var entry = contents.shift();
+        logger.debug(function(){ return 'customizer: ' + entry.Key; });
+        s3.getObject({Bucket: config.settings.s3_bucket,Key: entry.Key},function(err,data){
+            if (err) return reportError(err);
+
+            fs.mkdir('./customizers/',function(err){
+                var parts = entry.Key.split('/');
+                fs.writeFile('./customizers/' + parts[parts.length - 1],data.Body,function(err){
+                    if (err) return reportError(err);
+
+                    _.defer(processNextFile);
+                });
+            });
+        })
+    }
+
+    s3.listObjects({Bucket: config.settings.s3_bucket,Prefix: 'code/s3-ingestor/customizers/'},function(err,data){
+        if (err) return reportError(err);
+
+        contents = data.Contents;
+        _.defer(processNextFile);
+    });
+}
+
+function considerUploadAction(context, resolve, reject){
+    if (context.state !== 'configured') return resolve(null);
+
+    context.version = VERSION;
+    context.action = 'upload';
+    context.info = readLocalInfo();
+    uploadFiles(context).catch(reject).then(function(){
+        contactHost(context).then(resolve).catch(reject);
+    });
+}
+
+function upgradeSelf(context,resolve,reject){
+    child_process.exec(config.settings.upgrade_command,function(error,stdout,stderr) {
+        if (error) {
+            context.action = context.action ? context.action + '+error' : 'error';
+            context.error = error;
+        }
+
+        contactHost(context).catch(reject).then(function(){
+            if (error)
+                resolve(null);
+            else
+                process.exit(0);
+        });
     });
 }
 
@@ -149,15 +220,24 @@ function uploadFiles(context){
         logger.message('begin uploading files...');
 
         var s3 = configureS3();
-        var policies = _.clone(config.policies);
+        var policies = _.clone(config.settings.policies || []);
         var currentPolicy = undefined;
         var currentFiles = undefined;
         context.result = {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0};
 
+        function recordError(err){
+            context.action = context.action ? context.action + '+error' : 'error';
+            context.error = err;
+            reject(err);
+        }
+
         function buildkey(filename){
             var suffix = helpers.trimPrefix(filename,currentPolicy.input_remove_prefix || '');
 
-            if (currentPolicy.customizer) suffix = currentPolicy.customizer(suffix);
+            if (typeof(currentPolicy.customizer) === 'function')
+                suffix = currentPolicy.customizer(suffix,config.settings);
+            else if (currentPolicy.customizer)
+                suffix = null;
 
             return suffix ? (currentPolicy.output_key_prefix || '') + suffix : null;
         }
@@ -181,9 +261,9 @@ function uploadFiles(context){
                     logger.debug(function(){return '... unchanged: ' + filename});
                     _.defer(processNextFile);
                 } else {
-                    s3.listObjects({Bucket: config.s3_bucket,Prefix: key},function(err,data){
+                    s3.listObjects({Bucket: config.settings.s3_bucket,Prefix: key},function(err,data){
                         if (err)
-                            reject(err);
+                            recordError(err);
                         else if (data.Contents.length > 0 && data.Contents[0].Size === stats.size) {
                             context.result.skipped++;
                             logger.debug(function(){return '... skip: ' + filename + ' => ' + key});
@@ -195,9 +275,9 @@ function uploadFiles(context){
                             logger.message((update ? '... update: ' : '... add: ') + filename + ' => ' + key);
                             var stream = fs.createReadStream(filename);
                             stream.on('error',function(){ stream.emit('end'); });
-                            s3.upload({Bucket: config.s3_bucket,Key: key,Body: stream},function(err,data){
+                            s3.upload({Bucket: config.settings.s3_bucket,Key: key,Body: stream},function(err,data){
                                 if (err)
-                                    reject(err);
+                                    recordError(err);
                                 else {
                                     lastSeenList[filename] = stats;
                                     _.defer(processNextFile);
@@ -219,9 +299,12 @@ function uploadFiles(context){
         function processOnePolicy(policy){
             currentPolicy = policy;
 
-            if (typeof(currentPolicy.customizer) === 'string') currentPolicy.customizer = require('./customizers/' + currentPolicy.customizer);
+            if (typeof(currentPolicy.customizer) === 'string') {
+                var customizerPath = process.cwd() + '/customizers/' + currentPolicy.customizer;
+                if (fs.existsSync(customizerPath + '.js')) currentPolicy.customizer = require(customizerPath);
+            }
 
-            glob(currentPolicy.input_file_pattern,function(err,files){
+            glob(currentPolicy.input_file_pattern || '**/*',function(err,files){
                 if (err)
                     reject(err);
                 else {
@@ -250,18 +333,30 @@ function passThroughPromise(){
     });
 }
 
-var s3;
+//-------------- AWS functions
 
-function resetS3(aws_keys){
-    s3 = undefined;
-    helpers.saveJSON(config.aws_keys_file,config.aws_keys = aws_keys);
+var s3 = undefined;
+
+function optionallyResetS3(aws_keys,callback){
+    if (!aws_keys)
+        callback();
+    else {
+        s3 = undefined;
+        helpers.saveJSON(config.settings.aws_keys_file,config.settings.aws_keys = aws_keys);
+        logger.message('waiting for IAM keys to become valid...');
+        setTimeout(callback,config.settings.iam_reset_period * 1000)
+    }
+
 }
 
 function configureS3(){
     if (!s3) {
-        if (!config.aws_keys) config.aws_keys = helpers.readJSON(config.aws_keys_file,{},{});
+        if (!config.settings.aws_keys) config.settings.aws_keys = helpers.readJSON(config.settings.aws_keys_file,{},{});
 
-        s3 = new aws.S3({credentials: new aws.Credentials(config.aws_keys.access_key_id,config.aws_keys.secret_access_key)});
+        s3 = new aws.S3({
+            credentials: new aws.Credentials(config.settings.aws_keys.access_key_id,config.settings.aws_keys.secret_access_key),
+            httpOptions: {timeout: config.settings.s3_timeout}
+        });
     }
     return s3;
 }
@@ -274,22 +369,22 @@ emitter.on('startup',function(){
 
     var apiServer = http.createServer(function(req,res) {
         var context = readContext();
-        var interfaces = readInterfaces();
-        interfaces.state = context.state || 'unknown';
-        interfaces.version = VERSION;
+        var info = readLocalInfo();
+        info.state = context.state || 'unknown';
+        info.version = VERSION;
 
-        logger.message('wakeup ' + JSON.stringify(interfaces));
+        logger.message('wakeup ' + JSON.stringify(info));
 
         res.writeHead(200, {'Content-Type': 'text/json'});
-        res.end(JSON.stringify(interfaces));
+        res.end(JSON.stringify(info));
 
         lastSeenList = {};
         emitter.emit('phonehome','wakeup');
     });
 
-    apiServer.listen(config.api_port,'0.0.0.0');
+    apiServer.listen(config.settings.api_port,'0.0.0.0');
 
-    logger.message('Server running at http://0.0.0.0:' + config.api_port);
+    logger.message('Server running at http://0.0.0.0:' + config.settings.api_port);
 });
 
 emitter.on('phonehome',phoneHome);

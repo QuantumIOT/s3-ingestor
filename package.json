@@ -1,6 +1,7 @@
 {
   "name": "s3-ingestor",
-  "version": "0.0.4",
+  "version": "0.1.17",
+  "main":"s3-ingestor.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/quantumiot/s3-ingestor.git"
