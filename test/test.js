@@ -18,14 +18,19 @@ MockHelpers.resetMock = function(){
     MockHelpers.filesToRead = {};
     MockHelpers.filesRead = [];
     MockHelpers.filesSaved = [];
+    MockHelpers.filesToRequire = {};
+    MockHelpers.filesRequired = [];
 };
 
-MockHelpers.checkMockFiles = function(expectedReads, expectedSaves){
+MockHelpers.checkMockFiles = function(expectedReads,expectedSaves,expectedRequires){
     MockHelpers.filesRead.should.eql(expectedReads || []);
     MockHelpers.filesRead = [];
 
     MockHelpers.filesSaved.should.eql(expectedSaves || []);
     MockHelpers.filesSaved = [];
+    
+    MockHelpers.filesRequired.should.eql(expectedRequires || []);
+    MockHelpers.filesRequired = [];
 };
 
 MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
@@ -43,6 +48,11 @@ MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
 
 MockHelpers.saveJSON = function(filename, json){
     MockHelpers.filesSaved.push([filename,json]);
+};
+
+MockHelpers.requireLIB = function(path) {
+    MockHelpers.filesRequired.push(path);
+    return MockHelpers.filesToRequire[path] || require(process.cwd() + '/lib/' + path);
 };
 
 MockHelpers.resetMock();
