@@ -7,7 +7,6 @@ var events = require('events');
 var config = require(process.cwd() + '/lib/config');
 
 var PhoneHome = require(process.cwd() + '/lib/phone-home');
-var PolicyUpload = require('/Users/steveemmons/QuantumIOT/s3-ingestor/lib/policy-upload');
 
 describe('PhoneHome',function() {
 
