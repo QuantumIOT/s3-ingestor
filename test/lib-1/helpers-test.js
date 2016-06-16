@@ -51,6 +51,17 @@ describe('helpers',function(){
         })
     });
 
+    describe('safeParseJSON',function(){
+       it('should return valid parsed json',function(){
+           helpers.safeParseJSON('{"test":1}').should.eql({test: 1});
+       });
+
+        it('should return null for invalid json',function(){
+            (helpers.safeParseJSON('{') === null).should.be.ok;
+            test.mockLogger.checkMockLogEntries(['ERROR - json error: SyntaxError: Unexpected end of input']);
+        });
+    });
+
     describe('requireLIB',function(){
        it('should pass through a "require" request for /lib files with just the lib file name',function(){
            helpers.requireLIB('helpers').should.eql(helpers);
