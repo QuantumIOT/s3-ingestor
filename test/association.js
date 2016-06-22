@@ -6,7 +6,7 @@
  */
 
 var _ = require('lodash');
-
+var fs = require('fs');
 
 function elementIsInArray(element, array) {
 	return array.indexOf(element) !== -1;
@@ -66,6 +66,22 @@ for (var k = 0; k < my_array.length; k++){
 }
 
 console.log(_.keys(my_object))
+
+
+
+// To check if an object is empty 
+my_array = [];
+// console.log(_.isEmpty(my_array))
+
+
+file_path = "/Users/krishna_qiot/Desktop/magic/4.5MB_1280*720.jpg";
+var file_stat = fs.stat(file_path, function(error, stats){
+	console.log(stats.mtime)
+})
+
+
+
+
 // console.log("\n iterating over object: ")
 // for (someKey in my_object)
 // {
