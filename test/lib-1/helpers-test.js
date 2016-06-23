@@ -62,6 +62,16 @@ describe('helpers',function(){
         });
     });
 
+    describe('fileExists',function(){
+        it('should return stat object for file that exists',function(){
+            (!!helpers.fileExists('test/test.js')).should.be.ok;
+        });
+
+        it('should return null for invalid json',function(){
+            (!helpers.fileExists('unknown.txt')).should.be.ok;
+        });
+    });
+
     describe('requireLIB',function(){
        it('should pass through a "require" request for /lib files with just the lib file name',function(){
            helpers.requireLIB('helpers').should.eql(helpers);
