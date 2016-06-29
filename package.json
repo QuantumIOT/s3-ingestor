@@ -1,6 +1,6 @@
 {
   "name": "s3-ingestor",
-  "version": "0.2.0",
+  "version": "0.2.21",
   "main":"s3-ingestor.js",
   "repository": {
     "type": "git",
@@ -24,7 +24,9 @@
   "dependencies": {
     "aws-sdk": "^2.3.3",
     "glob": "^7.0.3",
-    "lodash": "^4.10.0"
+    "lodash": "^4.10.0",
+    "redis": "^2.6.1",
+    "then-redis": "^2.0.1"
   },
   "devDependencies": {
     "chai": "^3.5.0",
