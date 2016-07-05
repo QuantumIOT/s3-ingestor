@@ -1,10 +1,15 @@
 {
   "name": "s3-ingestor",
-  "version": "0.1.17",
+  "version": "0.2.23",
   "main":"s3-ingestor.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/quantumiot/s3-ingestor.git"
+  },
+  "scripts": {
+    "test": "mocha test  --recursive",
+    "test-cov": "istanbul cover --hook-run-in-context -x **test.js _mocha -- test --recursive",
+    "coveralls": "istanbul cover ./node_modules/mocha/bin/_mocha -x **test.js --report lcovonly -- -R spec test --recursive && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "keywords": [
     "AWS",
@@ -19,6 +24,17 @@
   "dependencies": {
     "aws-sdk": "^2.3.3",
     "glob": "^7.0.3",
-    "lodash": "^4.10.0"
+    "lodash": "^4.10.0",
+    "redis": "^2.6.1",
+    "then-redis": "^2.0.1"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "coveralls": "^2.11.9",
+    "mocha": "^2.5.3",
+    "mocha-lcov-reporter": "^1.2.0",
+    "mockery": "^1.7.0",
+    "supertest": "^1.2.0",
+    "timekeeper": "^0.1.1"
   }
 }

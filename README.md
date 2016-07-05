@@ -7,19 +7,19 @@ It will send the contents of `s3-ingestor-context.json` to the "mothership" and 
 
 The each request to the "mothership" will include the following:
 
-* **state**: This is the state the `s3-ingestor.js` thinks it is in -- generally it is whatever the "mothership" last sent in reply to a "phone home" event, but unless the "state" is set to "configured," the `s3-ingestor.js` will not upload any files.
-* **version**: The version of the `s3-ingestor.js`.
-* **info**: This contains information about the `s3-ingestor.js`. This will always contain "hostname" (which is currently expected to be unique), but will also contain the following on "startup." Simplistically, this will be the following information:
+* **state**: This is the state the `s3-ingestor` thinks it is in -- generally it is whatever the "mothership" last sent in reply to a "phone home" event, but unless the "state" is set to "configured," the `s3-ingestor` will not upload any files.
+* **version**: The version of the `s3-ingestor`.
+* **info**: This contains information about the `s3-ingestor`. This will always contain "hostname" (which is currently expected to be unique), but will also contain the following on "startup." Simplistically, this will be the following information:
     * **hostname**:   os.hostname()
     * **hosttype**:   os.type()
     * **platform**:   os.platform()
     * **release**:    os.release()
     * **totalmem**:   os.totalmem()
     * **network**:    os.networkInterfaces()
-* **action**: This tells the "mothership" what prompted the `s3-ingestor.js` to "phone home." These can be:
-    * **startup**: Sent when the `s3-ingestor.js` is started.
+* **action**: This tells the "mothership" what prompted the `s3-ingestor` to "phone home." These can be:
+    * **startup**: Sent when the `s3-ingestor` is started.
     * **heartbeat**: Sent every "heartbeat_period" seconds as defined in the configuration.
-    * **wakeup**: Sent if the `s3-ingestor.js` is asked to "wake up" (see below).
+    * **wakeup**: Sent if the `s3-ingestor` is asked to "wake up" (see below).
     * **upload**: Sent in response to an action replied by the "mothership" that results in files being uploaded.
     * **error**: Sent if an error occurs in response to an action replied by the "mothership"
     * If the mothership sends an "action" in reply to a "phone home" event, this action is echoed back unless an error occurs.
@@ -30,7 +30,7 @@ The each request to the "mothership" will include the following:
     * **ignored**: Files not matching the policy to be uploaded.
     * **unchanged**: Files whose timestamp is the same as the last time it was considered.
 
-The `s3-ingestor.js` has a set of default configuration options, but any of these can be overridden in a `s3-ingestor.json` configuration file:
+The `s3-ingestor` has a set of default configuration options, but any of these can be overridden in a `s3-ingestor.json` configuration file:
 
 * **debug**: Turns on/off debug logging (default: false)
 * **api_port**: Port used for the "wakekup" HTTP service (default: 4567)
@@ -55,12 +55,15 @@ If the mothership sends "aws_keys" in the response, the contents will be stored 
  
 If the mothership sends "config" in the response, the config will be updated with whatever is included.
 
-The "mothership" current can send the following "actions" to be performed by `s3-ingestor.js`:
+The "mothership" current can send the following "actions" to be performed by `s3-ingestor`:
 
 * **customizers**: New contents for the `customizers` directory will be pulled from the **s3_bucket** at S3 key prefix "code/s3-ingestor/customizers/".
 * **report**: The current configuration will be sent as the "result" to the "mothership".
 * **upgrade**: The s3-ingestor NPM package will be updated.
 
-To run on Windows as a service, consider https://github.com/jon-hall/pm2-windows-service
+The `s3-ingestor` is designed to be monitored by PM2 (https://github.com/Unitech/pm2) or something similar.
+For example, if the "mothership" sends the **upgrade** action, `s3-ingestor` will upgrade itself and then terminate the process, assuming that PM2 will restart it.
 
+The `s3-ingestor` has been tested to work on Windows.
+To run on Windows as a service, consider https://github.com/jon-hall/pm2-windows-service
 To install nodeJS on Windows, consider https://nodejs.org/en/download/
