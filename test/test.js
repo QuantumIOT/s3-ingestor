@@ -42,10 +42,11 @@ MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
         status = 'default';
     }
     MockHelpers.filesRead.push([filename,status]);
-    return MockHelpers.readError ? errorJSON : MockHelpers.filesToRead[filename] ? MockHelpers.filesToRead[filename] : defaultJSON;
+    return MockHelpers.readError ? errorJSON : MockHelpers.filesToRead[filename] ? _.clone(MockHelpers.filesToRead[filename]) : defaultJSON;
 };
 
 MockHelpers.saveJSON = function(filename, json){
+    MockHelpers.filesToRead[filename] = _.clone(json);
     MockHelpers.filesSaved.push([filename,json]);
 };
 
