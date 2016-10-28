@@ -94,6 +94,261 @@ describe('PhoneHome',function() {
             test.mockHelpers.checkMockFiles([],[],['policy-upload']);
         });
     });
+
+    describe('performHostAction',function(){
+        it('should handle upgrade commands',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            var success = false;
+            phoneHome.upgradeSelf = function(context,resolve,reject){
+                success = true;
+                resolve();
+            };
+
+            phoneHome.performHostAction('upgrade',{test: true}).then(function(){
+                success.should.be.ok;
+                test.mockLogger.checkMockLogEntries(['perform host action: upgrade']);
+                done();
+            },function(){ true.should.not.be.ok; done(); });
+        });
+
+        it('should handle reboot commands',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            var success = false;
+            phoneHome.rebootSystem = function(context,resolve,reject){
+                success = true;
+                resolve();
+            };
+
+            phoneHome.performHostAction('reboot',{test: true}).then(function(){
+                success.should.be.ok;
+                test.mockLogger.checkMockLogEntries(['perform host action: reboot']);
+                done();
+            },function(){ true.should.not.be.ok; done(); });
+        });
+
+        it('should handle restart commands',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            test.mockHelpers.processExit = function(){
+                test.mockLogger.checkMockLogEntries(['perform host action: restart']);
+                done();
+            };
+
+            var shouldNotHappen = function(){ true.should.not.be.ok; done(); };
+            phoneHome.performHostAction('restart',{test: true}).then(shouldNotHappen,shouldNotHappen);
+        });
+    });
+
+    describe('downloadCustomizers',function() {
+        it('should handle an error on s3.listObjects', function (done) {
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            var context = {state: 'test',action: 'test'};
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback('download-error'); };
+
+            test.mockHTTPS.deferAfterEnd = function(){
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+            };
+
+            function checkResults(){
+                test.mockLogger.checkMockLogEntries([
+                    'ERROR - download customizers error - download-error',
+                    'DEBUG - host input: {"context":{"state":"test","action":"test+error","error":"download-error"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"download-error"}}',null]);
+                test.mockHelpers.checkMockFiles([[ 's3-ingestor-keys.json','default']]);
+                test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}]]);
+                delete config.settings.aws_keys;
+
+                done();
+            }
+
+            phoneHome.downloadCustomizers(context,checkResults,function(){ true.should.not.be.ok; done(); });
+        });
+
+        it('should handle an error on s3.getObject', function (done) {
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            var context = {state: 'test'};
+            config.settings.policies = [];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Key: 'test'}]}); };
+            test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback('download-error'); };
+
+            test.mockHTTPS.deferAfterEnd = function(){
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+            };
+
+            function checkResults(){
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - customizer count: 1',
+                    'DEBUG - customizer: test',
+                    'ERROR - download customizers error - download-error',
+                    'DEBUG - host input: {"context":{"state":"test","action":"error","error":"download-error"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"download-error"}}',null]);
+                test.mockHelpers.checkMockFiles([[ 's3-ingestor-keys.json','default']]);
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
+                    ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
+                ]);
+                delete config.settings.aws_keys;
+
+                done();
+            }
+
+            phoneHome.downloadCustomizers(context,checkResults,function(){ true.should.not.be.ok; done(); });
+        });
+
+        it('should handle an error on writeFile', function (done) {
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            var context = {state: 'test'};
+            config.settings.policies = [];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Key: 'test'}]}); };
+            test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback(null,{Key: 'test',Body: 'test-body'}); };
+
+            test.mockHelpers.mkdir = function(path,callback) {
+                path.should.eql('./customizers/');
+                callback(null)
+            };
+
+            test.mockHelpers.writeFile = function(path,data,callback){
+                path.should.eql('./customizers/test');
+                data.should.eql('test-body');
+                callback('writeFile-error')
+            };
+
+            test.mockHTTPS.deferAfterEnd = function(){
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+            };
+
+            function checkResults(){
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - customizer count: 1',
+                    'DEBUG - customizer: test',
+                    'ERROR - download customizers error - writeFile-error',
+                    'DEBUG - host input: {"context":{"state":"test","action":"error","error":"writeFile-error"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"writeFile-error"}}',null]);
+                test.mockHelpers.checkMockFiles([[ 's3-ingestor-keys.json','default']]);
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
+                    ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
+                ]);
+                delete config.settings.aws_keys;
+
+                done();
+            }
+
+            phoneHome.downloadCustomizers(context,checkResults,function(){ true.should.not.be.ok; done(); });
+        });
+    });
+
+    describe('upgradeSelf',function(){
+        it('should perform a processExit on success',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data('{"state":"test"}');
+            };
+
+            test.mockHelpers.processExec = function(command,callback){
+                command.should.eql('npm update s3-ingestor');
+                callback(null);
+            };
+
+            test.mockHelpers.processExit = function(){
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - host input: {"context":{"state":"test"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                done();
+            };
+
+            var shouldNotHappen = function(){ true.should.not.be.ok; done(); };
+            phoneHome.upgradeSelf({state: 'test'},shouldNotHappen,shouldNotHappen);
+        });
+
+        it('should report an error on failure',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data('{"state":"test"}');
+            };
+
+            test.mockHelpers.processExec = function(command,callback){
+                command.should.eql('npm update s3-ingestor');
+                callback('process-error');
+            };
+
+            phoneHome.upgradeSelf({state: 'test'},function(){
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - host input: {"context":{"state":"test","action":"upgrade+error","error":"process-error"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                done();
+            },function(){ true.should.not.be.ok; done(); });
+        });
+    });
+
+    describe('rebootSystem',function(){
+        it('should execute reboot action on success',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data('{"state":"test"}');
+            };
+
+            test.mockHelpers.processExec = function(command,callback){
+                command.should.eql('echo reboot');
+                callback(null);
+            };
+
+            phoneHome.rebootSystem({state: 'test'},function(){
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - host input: {"context":{"state":"test"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                done();
+            },function(){ true.should.not.be.ok; done(); });
+        });
+
+        it('should report an error on failure',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data('{"state":"test"}');
+            };
+
+            test.mockHelpers.processExec = function(command,callback){
+                command.should.eql('echo reboot');
+                callback('process-error');
+            };
+
+            phoneHome.rebootSystem({state: 'test'},function(){
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - host input: {"context":{"state":"test","action":"reboot+error","error":"process-error"}}',
+                    'DEBUG - host output: {"state":"test"}'
+                ]);
+                done();
+            },function(){ true.should.not.be.ok; done(); });
+        });
+    });
     
     describe('handlePhoneHomeEvent',function(){
         it('should do nothing on startup unless context state is configured',function(done){
@@ -314,13 +569,8 @@ describe('PhoneHome',function() {
                 responseData = '{"state":"configured"}';
             };
 
-            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){
-                callback(null,{Contents: [{Key: 'test'}]});
-            };
-
-            test.mockAwsSdk.deferAfterS3GetObject = function(callback){
-                callback(null,{Key: 'test',Body: 'test-body'});
-            };
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Key: 'test'}]}); };
+            test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback(null,{Key: 'test',Body: 'test-body'}); };
 
             test.mockHelpers.mkdir = function(path,callback) {
                 path.should.eql('./customizers/');
