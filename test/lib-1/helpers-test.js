@@ -39,10 +39,12 @@ describe('helpers',function(){
 
     describe('saveJSON',function(){
         it('should save a JSON object to a file',function(){
-            var testFile = 'tmp/save-test.json';
-            helpers.saveJSON(testFile,{success: true});
-            fs.readFileSync(testFile).toString().should.eql('{"success":true}');
-            fs.unlinkSync(testFile);
+            fs.mkdir('tmp/',function(error) {
+                var testFile = 'tmp/save-test.json';
+                helpers.saveJSON(testFile,{success: true});
+                fs.readFileSync(testFile).toString().should.eql('{"success":true}');
+                fs.unlinkSync(testFile);
+            });
         });
 
         it('should log an error if saving fails',function(){
