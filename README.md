@@ -1,4 +1,5 @@
 # S3-INGESTOR
+TRAVIS
 
 This is a simple utility in NodeJS for pushing files from a local file system to S3 on an ongoing basis.
 
