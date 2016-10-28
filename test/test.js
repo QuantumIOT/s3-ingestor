@@ -22,14 +22,18 @@ MockHelpers.resetMock = function(){
 };
 
 MockHelpers.checkMockFiles = function(expectedReads,expectedSaves,expectedRequires){
-    MockHelpers.filesRead.should.eql(expectedReads || []);
-    MockHelpers.filesRead = [];
+    try {
+        MockHelpers.filesRead.should.eql(expectedReads || []);
+        MockHelpers.filesRead = [];
 
-    MockHelpers.filesSaved.should.eql(expectedSaves || []);
-    MockHelpers.filesSaved = [];
-    
-    MockHelpers.filesRequired.should.eql(expectedRequires || []);
-    MockHelpers.filesRequired = [];
+        MockHelpers.filesSaved.should.eql(expectedSaves || []);
+        MockHelpers.filesSaved = [];
+
+        MockHelpers.filesRequired.should.eql(expectedRequires || []);
+        MockHelpers.filesRequired = [];
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
@@ -46,8 +50,9 @@ MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
 };
 
 MockHelpers.saveJSON = function(filename, json){
-    MockHelpers.filesToRead[filename] = _.clone(json);
-    MockHelpers.filesSaved.push([filename,json]);
+    var clone = _.clone(json);
+    MockHelpers.filesToRead[filename] = clone;
+    MockHelpers.filesSaved.push([filename,clone]);
 };
 
 MockHelpers.requireLIB = function(path) {
@@ -64,20 +69,26 @@ module.exports.mockHelpers = MockHelpers;
 var MockLogger = {debugging: false};
 
 MockLogger.resetMock = function(){
+    MockLogger.showLogs = false;
     MockLogger.logEntries = [];
 };
 
 MockLogger.checkMockLogEntries = function(expectation){
-    MockLogger.logEntries.should.eql(expectation || []);
-    MockLogger.logEntries = [];
+    try {
+        MockLogger.logEntries.should.eql(expectation || []);
+        MockLogger.logEntries = [];
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 MockLogger.message = function(string){
+    if (MockLogger.showLogs) console.log(string);
     MockLogger.logEntries.push(string);
 };
 
 MockLogger.error = function(error) {
-    MockLogger.logEntries.push('ERROR - ' + error);
+    MockLogger.message('ERROR - ' + error);
 };
 
 MockLogger.debug = function(debug){
@@ -95,7 +106,7 @@ var MockS3 = {};
 var MockAwsSdk = {};
 
 MockAwsSdk.S3 = function(options){
-    MockS3.options = options;
+    MockAwsSdk.s3options = options;
     return MockS3;
 };
 
@@ -104,11 +115,31 @@ MockAwsSdk.Credentials = function(access_key_id, secret_access_key){
 };
 
 MockAwsSdk.resetMock = function(){
-    MockS3 = {};
+    MockAwsSdk.s3options = {};
+    MockAwsSdk.called = [];
+    MockAwsSdk.deferAfterS3ListObjects = null;
+    MockAwsSdk.deferAfterS3GetObject = null
 };
 
-MockAwsSdk.checkMockState = function(){
-  // TODO check mock state when there is some
+MockAwsSdk.checkMockState = function(called){
+    try {
+        MockAwsSdk.called.should.eql(called || [])
+        MockAwsSdk.called = [];
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+MockS3.listObjects = function(options,callback){
+    MockAwsSdk.called.push(['s3.listObjects',options]);
+    (!!MockAwsSdk.deferAfterS3ListObjects).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3ListObjects,callback);
+};
+
+MockS3.getObject = function(options,callback){
+    MockAwsSdk.called.push(['s3.getObject',options]);
+    (!!MockAwsSdk.deferAfterS3GetObject).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3GetObject,callback);
 };
 
 module.exports.mockAwsSdk = MockAwsSdk;
@@ -140,6 +171,7 @@ var MockHTTP = {
         MockHTTP.requestError = null;
         MockHTTP.lastOptions = null;
         MockHTTP.written = [];
+        MockHTTP.deferAfterEnd = function() {};
     },
     createServer: function(app){ MockHTTP.app = app; return MockHTTP; },
     listen: function(port){ MockHTTP.port = port; },
@@ -157,6 +189,14 @@ var MockHTTP = {
             MockHTTP.written.push(null);
             MockHTTP.callback && MockHTTP.callback({statusCode: MockHTTP.statusCode,statusMessage: MockHTTP.statusMessage,headers: MockHTTP.headers,on: MockHTTP.on});
             MockHTTP.callback = null;
+        }
+        _.defer(MockHTTP.deferAfterEnd);
+    },
+    checkWritten: function(written){
+        try{
+            MockHTTP.written.should.eql(written || []);
+        }catch(error){
+            console.log(error);
         }
     }
 };
@@ -177,6 +217,7 @@ var MockHTTPS = {
         MockHTTPS.requestError = null;
         MockHTTPS.lastOptions = null;
         MockHTTPS.written = [];
+        MockHTTPS.deferAfterEnd = function(){};
     },
     createServer: function(app){ MockHTTPS.app = app; return MockHTTPS; },
     listen: function(port){ MockHTTPS.port = port; },
@@ -194,6 +235,14 @@ var MockHTTPS = {
             MockHTTPS.written.push(null);
             MockHTTPS.callback && MockHTTPS.callback({statusCode: MockHTTPS.statusCode,statusMessage: MockHTTPS.statusMessage,headers: MockHTTPS.headers,on: MockHTTPS.on});
             MockHTTPS.callback = null;
+        }
+        _.defer(MockHTTPS.deferAfterEnd);
+    },
+    checkWritten: function(written){
+        try{
+            MockHTTPS.written.should.eql(written || []);
+        }catch(error){
+            console.log(error);
         }
     }
 };
