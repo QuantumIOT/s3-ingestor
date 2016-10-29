@@ -56,6 +56,8 @@ MockHelpers.saveJSON = function(filename, json){
 };
 
 MockHelpers.requireLIB = function(path) {
+    if (MockHelpers.filesToRequire[path] === null) return null;
+
     MockHelpers.filesRequired.push(path);
     return MockHelpers.filesToRequire[path] || require(process.cwd() + '/lib/' + path);
 };

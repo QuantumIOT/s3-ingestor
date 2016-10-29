@@ -70,14 +70,18 @@ describe('helpers',function(){
         });
 
         it('should return null for invalid json',function(){
-            (!helpers.fileExists('unknown.txt')).should.be.ok;
+            (!!helpers.fileExists('unknown.txt')).should.not.be.ok;
         });
     });
 
     describe('requireLIB',function(){
+        it('should return null if a requested module does not exist',function(){
+            (!!helpers.requireLIB('unknown')).should.not.be.ok;
+        });
+
        it('should pass through a "require" request for /lib files with just the lib file name',function(){
            helpers.requireLIB('helpers').should.eql(helpers);
-       })
+       });
     });
     
     describe('trimPrefix',function(){

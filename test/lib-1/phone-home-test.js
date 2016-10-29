@@ -36,6 +36,8 @@ describe('PhoneHome',function() {
         oldPolicies = config.settings.policies;
         oldHeartbeatPeriod = config.settings.heartbeat_period;
         config.settings.heartbeat_period = 0.01;
+
+        test.mockHelpers.filesToRequire['policy-test'] = null;
     });
 
     afterEach(function () {
