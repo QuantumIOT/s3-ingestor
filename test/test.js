@@ -120,7 +120,8 @@ MockAwsSdk.resetMock = function(){
     MockAwsSdk.s3options = {};
     MockAwsSdk.called = [];
     MockAwsSdk.deferAfterS3ListObjects = null;
-    MockAwsSdk.deferAfterS3GetObject = null
+    MockAwsSdk.deferAfterS3GetObject = null;
+    MockAwsSdk.deferAfterS3Upload = null;
 };
 
 MockAwsSdk.checkMockState = function(called){
@@ -144,13 +145,21 @@ MockS3.getObject = function(options,callback){
     _.defer(MockAwsSdk.deferAfterS3GetObject,callback);
 };
 
+MockS3.upload = function(options,callback){
+    var adjusted = _.clone(options);
+    if (adjusted.Body) adjusted.Body = true;
+    MockAwsSdk.called.push(['s3.upload',adjusted]);
+    (!!MockAwsSdk.deferAfterS3Upload).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3Upload,callback);
+};
+
 module.exports.mockAwsSdk = MockAwsSdk;
 
 // MOCK GLOB
 
 function MockGlob(pattern, callback){
     var result = MockGlob.lookup[pattern];
-    return result ? callback(null,result) : callback('GLOB error: ' + pattern,null);
+    return result ? callback(null,_.clone(result)) : callback('GLOB error: ' + pattern,null);
 }
 
 MockGlob.resetMock = function(){

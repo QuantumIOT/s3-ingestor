@@ -149,7 +149,7 @@ describe('PhoneHome',function() {
 
             var context = {state: 'test',action: 'test'};
 
-            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback('download-error'); };
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback('listObjects-error'); };
 
             test.mockHTTPS.deferAfterEnd = function(){
                 (!!test.mockHTTPS.events.data).should.be.ok;
@@ -158,11 +158,11 @@ describe('PhoneHome',function() {
 
             function checkResults(){
                 test.mockLogger.checkMockLogEntries([
-                    'ERROR - download customizers error - download-error',
-                    'DEBUG - host input: {"context":{"state":"test","action":"test+error","error":"download-error"}}',
+                    'ERROR - download customizers error - listObjects-error',
+                    'DEBUG - host input: {"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
-                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"download-error"}}',null]);
+                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',null]);
                 test.mockHelpers.checkMockFiles([[ 's3-ingestor-keys.json','default']]);
                 test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}]]);
                 delete config.settings.aws_keys;
