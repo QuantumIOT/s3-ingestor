@@ -9,7 +9,7 @@ describe('PolicySocket',function() {
     beforeEach(function () {
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws']);
+        test.mockery.registerAllowables(['./aws',test.configGuard.requirePath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('net',test.mockNET);
@@ -21,9 +21,11 @@ describe('PolicySocket',function() {
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
         test.mockLogger.debugging = true;
+        test.configGuard.beginGuarding();
     });
 
     afterEach(function () {
+        test.configGuard.finishGuarding();
         test.mockRedis.snapshot().should.eql([]);
         test.mockNET.checkSockets();
         test.mockAwsSdk.checkMockState();
@@ -56,7 +58,7 @@ describe('PolicySocket',function() {
             var resolve = false;
             var reject = [];
             var policy = new PolicySocket();
-            policy.apply({},config.settings,function(){ resolve = true; },function(err){
+            policy.apply({},config.copySettings(),function(){ resolve = true; },function(err){
                 reject = [err];
             });
             resolve.should.eql(true);

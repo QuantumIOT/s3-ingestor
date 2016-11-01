@@ -9,13 +9,15 @@ describe('PolicyBase',function() {
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
         test.mockery.registerMock('./helpers', test.mockHelpers);
-        test.mockery.registerAllowables([process.cwd() + '/test/customizers/test']);
+        test.mockery.registerAllowables([process.cwd() + '/test/customizers/test',test.configGuard.requirePath]);
         test.mockHelpers.resetMock();
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
+        test.configGuard.beginGuarding();
     });
 
     afterEach(function () {
+        test.configGuard.finishGuarding();
         test.mockLogger.checkMockLogEntries();
         test.mockHelpers.checkMockFiles();
         test.mockery.deregisterAll();

@@ -34,9 +34,11 @@ describe('PolicyUpload',function() {
         resolveSeen     = false;
         rejectSeen      = [];
         result          = {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0};
+        test.configGuard.beginGuarding();
     });
 
     afterEach(function () {
+        test.configGuard.finishGuarding();
         test.mockAwsSdk.checkMockState();
         test.mockHelpers.checkMockFiles();
         test.mockLogger.checkMockLogEntries();
@@ -59,16 +61,16 @@ describe('PolicyUpload',function() {
         it('should detect glob errors',function(){
             var context     = {};
             var policy      = new PolicyUpload();
-            policy.apply(context,config.settings,onResolve,onReject);
+            policy.apply(context,config.copySettings(),onResolve,onReject);
             context.should.eql({action: 'error',error: 'GLOB error: **/*'});
 
-            policy.apply(context,config.settings,onResolve,onReject);
+            policy.apply(context,config.copySettings(),onResolve,onReject);
             context.should.eql({action: 'error+error',error: 'GLOB error: **/*'});
 
             resolveSeen.should.eql(false);
             rejectSeen.should.eql(['GLOB error: **/*','GLOB error: **/*']);
 
-            test.mockLogger.checkMockLogEntries(['ERROR - policy-upload error: GLOB error: **/*','ERROR - policy-upload error: GLOB error: **/*']);
+            test.mockLogger.checkMockLogEntries(['ERROR - policy error: GLOB error: **/*','ERROR - policy error: GLOB error: **/*']);
         });
 
         it('should do nothing when no files found',function(done){
@@ -76,7 +78,7 @@ describe('PolicyUpload',function() {
 
             var context     = {};
             var policy      = new PolicyUpload();
-            policy.apply(context,config.settings,function(){
+            policy.apply(context,config.copySettings(),function(){
                 context.should.eql({});
                 done();
             },onReject);
@@ -87,7 +89,7 @@ describe('PolicyUpload',function() {
 
             var context     = {};
             var policy      = new PolicyUpload();
-            policy.apply(context,config.settings,function(){
+            policy.apply(context,config.copySettings(),function(){
                 test.mockLogger.checkMockLogEntries(["ERROR - SKIP ERROR: Error: ENOENT: no such file or directory, stat 'unknown.file'"]);
                 context.should.eql({});
                 done();
@@ -99,7 +101,7 @@ describe('PolicyUpload',function() {
 
             var context     = {};
             var policy      = new PolicyUpload();
-            policy.apply(context,config.settings,function(){
+            policy.apply(context,config.copySettings(),function(){
                 context.should.eql({});
                 done();
             },onReject);
@@ -113,10 +115,9 @@ describe('PolicyUpload',function() {
 
             policy.buildKey = function(){return null;};
 
-            policy.apply(context,config.settings,function(){
+            policy.apply(context,config.copySettings(),function(){
                 test.mockLogger.checkMockLogEntries(['DEBUG - ... ignore: test/data/test.json']);
                 context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 1,unchanged: 0}});
-                delete config.settings.aws_keys;
 
                 done();
             },onReject);
@@ -130,13 +131,12 @@ describe('PolicyUpload',function() {
             var context     = {result: result};
             var policy      = new PolicyUpload();
 
-            policy.apply(context,config.settings,function(){ true.should.not.be.ok; done(); },function(err){
+            policy.apply(context,config.copySettings(),function(){ true.should.not.be.ok; done(); },function(err){
                 err.should.eql('listObjects-error');
                 context.should.eql({action: 'error',error: 'listObjects-error',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
                 test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}]]);
-                test.mockLogger.checkMockLogEntries(['ERROR - policy-upload error: listObjects-error']);
+                test.mockLogger.checkMockLogEntries(['ERROR - policy error: listObjects-error']);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
-                delete config.settings.aws_keys;
 
                 done();
             });
@@ -151,7 +151,7 @@ describe('PolicyUpload',function() {
             var context     = {result: result};
             var policy      = new PolicyUpload();
 
-            policy.apply(context,config.settings,function(){ true.should.not.be.ok; done(); },function(err){
+            policy.apply(context,config.copySettings(),function(){ true.should.not.be.ok; done(); },function(err){
                 err.should.eql('upload-error');
                 context.should.eql({action: 'error',error: 'upload-error',result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
                 test.mockAwsSdk.checkMockState([
@@ -160,10 +160,9 @@ describe('PolicyUpload',function() {
                 ]);
                 test.mockLogger.checkMockLogEntries([
                     '... add: test/data/test.json => test/data/test.json',
-                    'ERROR - policy-upload error: upload-error'
+                    'ERROR - policy error: upload-error'
                 ]);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
-                delete config.settings.aws_keys;
 
                 done();
             });
@@ -180,7 +179,7 @@ describe('PolicyUpload',function() {
 
             policy.lastSeenList.should.eql({});
 
-            policy.apply(context,config.settings,function(){
+            policy.apply(context,config.copySettings(),function(){
                 context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
 
                 var lastSeen = policy.lastSeenList['test/data/test.json'];
@@ -192,14 +191,14 @@ describe('PolicyUpload',function() {
                 test.mockLogger.checkMockLogEntries(['... add: test/data/test.json => test/data/test.json']);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
-                policy.apply(context,config.settings,function(){
+                policy.apply(context,config.copySettings(),function(){
                     context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 1}});
                     test.mockLogger.checkMockLogEntries(['DEBUG - ... unchanged: test/data/test.json']);
 
                     test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size}]}); };
                     lastSeen.mtime = lastSeen.atime;
 
-                    policy.apply(context,config.settings,function(){
+                    policy.apply(context,config.copySettings(),function(){
                         context.should.eql({result: {added: 1,updated: 0,skipped: 1,ignored: 0,unchanged: 1}});
                         test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}]]);
                         test.mockLogger.checkMockLogEntries(['DEBUG - ... skip: test/data/test.json => test/data/test.json']);
@@ -208,14 +207,13 @@ describe('PolicyUpload',function() {
                         lastSeen.mtime = lastSeen.atime;
                         test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size + 1}]}); };
 
-                        policy.apply(context,config.settings,function(){
+                        policy.apply(context,config.copySettings(),function(){
                             context.should.eql({result: {added: 1,updated: 1,skipped: 1,ignored: 0,unchanged: 1}});
                             test.mockAwsSdk.checkMockState([
                                 ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
                                 ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
                             ]);
                             test.mockLogger.checkMockLogEntries(['... update: test/data/test.json => test/data/test.json']);
-                            delete config.settings.aws_keys;
 
                             done();
                         },done);

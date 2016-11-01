@@ -8,6 +8,24 @@ module.exports.expect = module.exports.chai.expect;
 module.exports.mockery = require('mockery');
 module.exports.timekeeper = require('timekeeper');
 
+// CONFIG GUARD
+
+var ConfigGuard = {requirePath: process.cwd() + '/lib/config'};
+
+ConfigGuard.beginGuarding = function(){
+    ConfigGuard.config = require(ConfigGuard.requirePath);
+
+    if (!ConfigGuard.previous) ConfigGuard.previous = JSON.stringify(ConfigGuard.config.settings);
+
+    return ConfigGuard.config;
+};
+
+ConfigGuard.finishGuarding = function(){
+    ConfigGuard.config.settings.should.eql(JSON.parse(ConfigGuard.previous));
+};
+
+module.exports.configGuard = ConfigGuard;
+
 // MOCK HELPERS
 
 var MockHelpers = _.clone(helpers);
@@ -121,6 +139,7 @@ MockAwsSdk.resetMock = function(){
     MockAwsSdk.called = [];
     MockAwsSdk.deferAfterS3ListObjects = null;
     MockAwsSdk.deferAfterS3GetObject = null;
+    MockAwsSdk.deferAfterS3HeadObject = null;
     MockAwsSdk.deferAfterS3Upload = null;
 };
 
@@ -143,6 +162,12 @@ MockS3.getObject = function(options,callback){
     MockAwsSdk.called.push(['s3.getObject',options]);
     (!!MockAwsSdk.deferAfterS3GetObject).should.be.ok;
     _.defer(MockAwsSdk.deferAfterS3GetObject,callback);
+};
+
+MockS3.headObject = function(options,callback){
+    MockAwsSdk.called.push(['s3.headObject',options]);
+    (!!MockAwsSdk.deferAfterS3HeadObject).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3HeadObject,callback);
 };
 
 MockS3.upload = function(options,callback){

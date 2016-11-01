@@ -14,11 +14,9 @@ describe('PhoneHome',function() {
     var oldHeartbeatPeriod = null;
 
     beforeEach(function () {
-        var configModule = process.cwd() + '/lib/config';
-
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','lodash',configModule]);
+        test.mockery.registerAllowables(['./aws','./config','lodash',test.configGuard.requirePath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
@@ -28,7 +26,7 @@ describe('PhoneHome',function() {
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
 
-        config = require(configModule);
+        config = test.configGuard.beginGuarding();
         test.mockHelpers.resetMock();
 
         test.mockLogger.debugging = true;
@@ -44,6 +42,7 @@ describe('PhoneHome',function() {
         test.mockLogger.debugging = false;
         config.settings.policies = oldPolicies;
         config.settings.heartbeat_period = oldHeartbeatPeriod;
+        test.configGuard.finishGuarding();
         test.mockAwsSdk.checkMockState();
         test.mockHelpers.checkMockFiles();
         test.mockLogger.checkMockLogEntries();
@@ -110,6 +109,7 @@ describe('PhoneHome',function() {
             phoneHome.performHostAction('upgrade',{test: true}).then(function(){
                 success.should.be.ok;
                 test.mockLogger.checkMockLogEntries(['perform host action: upgrade']);
+
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -165,7 +165,6 @@ describe('PhoneHome',function() {
                 test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',null]);
                 test.mockHelpers.checkMockFiles([[ 's3-ingestor-keys.json','default']]);
                 test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}]]);
-                delete config.settings.aws_keys;
 
                 done();
             }
@@ -201,7 +200,6 @@ describe('PhoneHome',function() {
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
                     ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
                 ]);
-                delete config.settings.aws_keys;
 
                 done();
             }
@@ -248,7 +246,6 @@ describe('PhoneHome',function() {
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
                     ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
                 ]);
-                delete config.settings.aws_keys;
 
                 done();
             }
@@ -551,6 +548,8 @@ describe('PhoneHome',function() {
 
                 (!!phoneHome.checkTimer).should.be.ok;
                 phoneHome.clearCheckTimer();
+                config.settings.debug = false;
+                delete config.settings.test;
                 done();
             };
         });
@@ -610,7 +609,6 @@ describe('PhoneHome',function() {
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
                     ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
                 ]);
-                delete config.settings.aws_keys;
 
                 (!!phoneHome.checkTimer).should.be.ok;
                 phoneHome.clearCheckTimer();
