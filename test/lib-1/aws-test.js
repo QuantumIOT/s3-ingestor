@@ -58,14 +58,24 @@ describe('AWS',function(){
 
     describe('configureS3',function(){
         it('should read aws keys the first time only',function(){
-            var aws = new AWS(config.copySettings());
+            var settings = config.copySettings();
+
+            var aws = new AWS(settings);
+
             test.should.not.exist(aws.s3);
 
             test.mockHelpers.filesToRead[config.settings.aws_keys_file] = {success: true};
-            aws.configureS3().should.eql(aws.s3);
-            test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'success']]);
 
             aws.configureS3().should.eql(aws.s3);
+
+            test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'success']]);
+
+            aws = new AWS(settings);
+
+            test.should.not.exist(aws.s3);
+
+            aws.configureS3().should.eql(aws.s3);
+
             test.mockHelpers.checkMockFiles();
         })
     });

@@ -73,7 +73,7 @@ describe('config',function(){
         it('should keep save any existing values in the config file',function(){
             test.mockHelpers.filesToRead['s3-ingestor.json'] = {existing: 'test'};
 
-            config.update({test: true});
+            config.update({existing: 'test',test: true});
 
             test.mockHelpers.checkMockFiles([['s3-ingestor.json','success'],['s3-ingestor.json','success']],[['s3-ingestor.json',{test: true,existing: 'test'}]]);
             test.mockLogger.checkMockLogEntries(['config updated']);

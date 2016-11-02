@@ -98,4 +98,10 @@ describe('helpers',function(){
             helpers.trimPrefix('string','string').should.eql('');
         });
     });
+
+    describe('isoTimestamp',function(){
+        it('should return the current time as an ISO timestamp',function(){
+            helpers.isoTimestamp().should.match(/^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z$/)
+        });
+    })
 });

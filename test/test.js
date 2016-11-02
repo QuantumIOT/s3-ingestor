@@ -140,6 +140,7 @@ MockAwsSdk.resetMock = function(){
     MockAwsSdk.deferAfterS3ListObjects = null;
     MockAwsSdk.deferAfterS3GetObject = null;
     MockAwsSdk.deferAfterS3HeadObject = null;
+    MockAwsSdk.deferAfterS3PutObject = null;
     MockAwsSdk.deferAfterS3Upload = null;
 };
 
@@ -168,6 +169,12 @@ MockS3.headObject = function(options,callback){
     MockAwsSdk.called.push(['s3.headObject',options]);
     (!!MockAwsSdk.deferAfterS3HeadObject).should.be.ok;
     _.defer(MockAwsSdk.deferAfterS3HeadObject,callback);
+};
+
+MockS3.putObject = function(options,callback){
+    MockAwsSdk.called.push(['s3.putObject',options]);
+    (!!MockAwsSdk.deferAfterS3PutObject).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3PutObject,callback);
 };
 
 MockS3.upload = function(options,callback){
@@ -332,6 +339,7 @@ module.exports.mockNET = MockNET;
 var MockRedis = {events: {},calls: []};
 
 MockRedis.resetMock = function(){
+    MockRedis.deferThen = false;
     MockRedis.clientException = null;
     MockRedis.events = {};
     MockRedis.errors = {};
@@ -343,7 +351,8 @@ MockRedis.resetMock = function(){
         hgetall: {},
         hmset: {},
         llen: {},
-        lpush: {}
+        lpush: {},
+        rpush: {}
     };
 };
 
@@ -368,7 +377,10 @@ MockRedis.createClient = function () {
             if (!MockRedis.clientException){
                 var result = MockRedis.results;
                 MockRedis.results = null;
-                callback && callback(result);
+                if (MockRedis.deferThen)
+                    _.defer(function(){callback && callback(result)});
+                else
+                    callback && callback(result);
             }
             return client;
         },
@@ -452,6 +464,13 @@ MockRedis.createClient = function () {
         lpush: function(key,value) {
             MockRedis.calls.push({lpush: [key,value]});
             var list = MockRedis.lookup.lpush[key] = MockRedis.lookup.lpush[key] || [];
+            list.unshift(value);
+            MockRedis.results = null;
+            return client;
+        },
+        rpush: function(key,value) {
+            MockRedis.calls.push({rpush: [key,value]});
+            var list = MockRedis.lookup.rpush[key] = MockRedis.lookup.rpush[key] || [];
             list.unshift(value);
             MockRedis.results = null;
             return client;
