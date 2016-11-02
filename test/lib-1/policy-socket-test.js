@@ -373,11 +373,6 @@ describe('PolicySocket',function() {
             test.mockAwsSdk.deferAfterS3PutObject = function(callback){ callback('putObject-error'); };
 
             _.defer(function(){
-                test.mockRedis.snapshot().should.eql([
-                    {lpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']},
-                    {brpop: 's3-socket-queue'}
-                ]);
-
                 policy.reset();
 
                 setTimeout(function(){
@@ -391,9 +386,17 @@ describe('PolicySocket',function() {
                         'DEBUG - brpop response: ["s3-socket-queue","{\\"timestamp\\":\\"test-timestamp\\",\\"data\\":\\"test-data\\"}"]',
                         'DEBUG - upload: test-timestamp',
                         'DEBUG - upload stopped',
-                        'ERROR - socket error: putObject-error'
+                        'ERROR - socket error: putObject-error',
+                        'DEBUG - put undelivered payload back',
+                        'DEBUG - queue checking stopped'
                     ]);
-                    test.mockAwsSdk.checkMockState([['s3.putObject',{Bucket: 'unknown-s3-bucket',Key: 'test-timestamp',Body: 'test-data'}]])
+                    test.mockRedis.snapshot().should.eql([
+                        {lpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']},
+                        {brpop: 's3-socket-queue'},
+                        {rpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']}
+                    ]);
+
+                    test.mockAwsSdk.checkMockState([['s3.putObject',{Bucket: 'unknown-s3-bucket',Key: 'test-timestamp',Body: 'test-data'}]]);
                     test.mockNET.resetMock();
                     done();
                 },10);
