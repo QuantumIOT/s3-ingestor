@@ -57,7 +57,7 @@ describe('PolicySocket',function() {
         it('should start the socket and uploads',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_queue: 'test',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
             test.mockNET.checkSockets([[
@@ -176,7 +176,7 @@ describe('PolicySocket',function() {
         it('should detect data on the socket and put in redis, but not for duplicates',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
@@ -204,7 +204,7 @@ describe('PolicySocket',function() {
                     'DEBUG - upload stopped',
                     'DEBUG - queue checking stopped'
                 ]);
-                test.mockRedis.snapshot().should.eql([{lpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']}]);
+                test.mockRedis.snapshot().should.eql([{lpush: ['test-queue','{"timestamp":"test-timestamp","data":"test-data"}']}]);
                 test.mockNET.resetMock();
                 done();
             });
@@ -313,7 +313,7 @@ describe('PolicySocket',function() {
         it('should retrieve data from redis to deliver to the S3',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
@@ -323,14 +323,14 @@ describe('PolicySocket',function() {
 
             policy.socket.topics['on:data']('test-data');
 
-            test.mockRedis.lookup.brpop.push(['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']);
+            test.mockRedis.lookup.brpop.push(['test-queue','{"timestamp":"test-timestamp","data":"test-data"}']);
 
             test.mockAwsSdk.deferAfterS3PutObject = function(callback){ callback(null); };
 
             _.defer(function(){
                 test.mockRedis.snapshot().should.eql([
-                    {lpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']},
-                    {brpop: 's3-socket-queue'}
+                    {lpush: ['test-queue','{"timestamp":"test-timestamp","data":"test-data"}']},
+                    {brpop: 'test-queue'}
                 ]);
 
                 policy.reset();
@@ -343,7 +343,7 @@ describe('PolicySocket',function() {
                         'DEBUG - call lpush: {"timestamp":"test-timestamp","data":"test-data"}',
                         'DEBUG - lpush success',
                         'DEBUG - call brpop',
-                        'DEBUG - brpop response: ["s3-socket-queue","{\\"timestamp\\":\\"test-timestamp\\",\\"data\\":\\"test-data\\"}"]',
+                        'DEBUG - brpop response: ["test-queue","{\\"timestamp\\":\\"test-timestamp\\",\\"data\\":\\"test-data\\"}"]',
                         'DEBUG - upload: test-timestamp',
                         'DEBUG - upload stopped',
                         'DEBUG - queue checking stopped'
@@ -358,7 +358,7 @@ describe('PolicySocket',function() {
         it('should detect an s3.putObject error',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
@@ -368,7 +368,7 @@ describe('PolicySocket',function() {
 
             policy.socket.topics['on:data']('test-data');
 
-            test.mockRedis.lookup.brpop.push(['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']);
+            test.mockRedis.lookup.brpop.push(['test-queue','{"timestamp":"test-timestamp","data":"test-data"}']);
 
             test.mockAwsSdk.deferAfterS3PutObject = function(callback){ callback('putObject-error'); };
 
@@ -383,7 +383,7 @@ describe('PolicySocket',function() {
                         'DEBUG - call lpush: {"timestamp":"test-timestamp","data":"test-data"}',
                         'DEBUG - lpush success',
                         'DEBUG - call brpop',
-                        'DEBUG - brpop response: ["s3-socket-queue","{\\"timestamp\\":\\"test-timestamp\\",\\"data\\":\\"test-data\\"}"]',
+                        'DEBUG - brpop response: ["test-queue","{\\"timestamp\\":\\"test-timestamp\\",\\"data\\":\\"test-data\\"}"]',
                         'DEBUG - upload: test-timestamp',
                         'DEBUG - upload stopped',
                         'ERROR - socket error: putObject-error',
@@ -391,9 +391,9 @@ describe('PolicySocket',function() {
                         'DEBUG - queue checking stopped'
                     ]);
                     test.mockRedis.snapshot().should.eql([
-                        {lpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']},
-                        {brpop: 's3-socket-queue'},
-                        {rpush: ['s3-socket-queue','{"timestamp":"test-timestamp","data":"test-data"}']}
+                        {lpush: ['test-queue','{"timestamp":"test-timestamp","data":"test-data"}']},
+                        {brpop: 'test-queue'},
+                        {rpush: ['test-queue','{"timestamp":"test-timestamp","data":"test-data"}']}
                     ]);
 
                     test.mockAwsSdk.checkMockState([['s3.putObject',{Bucket: 'unknown-s3-bucket',Key: 'test-timestamp',Body: 'test-data'}]]);
