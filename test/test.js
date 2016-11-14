@@ -146,7 +146,7 @@ MockAwsSdk.resetMock = function(){
 
 MockAwsSdk.checkMockState = function(called){
     try {
-        MockAwsSdk.called.should.eql(called || [])
+        MockAwsSdk.called.should.eql(called || []);
         MockAwsSdk.called = [];
     } catch (error) {
         console.log(error);

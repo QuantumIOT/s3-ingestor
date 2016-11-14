@@ -36,17 +36,17 @@ describe('config',function(){
 
             config.reset();
             test.mockLogger.debugging.should.not.be.ok;
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','default']]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','default']]);
         });
 
         it('should replace default policies from the config file',function(){
             var policies = _.clone(config.settings.policies);
 
-            test.mockHelpers.filesToRead['./s3-ingestor.json'] = {policies: [{handler: 'test'}]};
+            test.mockHelpers.filesToRead[config.home_full_path + '/s3-ingestor.json'] = {policies: [{handler: 'test'}]};
 
             config.reset();
 
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','success']]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','success']]);
             config.settings.policies.should.eql([{handler: 'test'}]);
 
             config.settings.policies = policies;
@@ -57,25 +57,25 @@ describe('config',function(){
         it('should not save any default values in the config file',function(){
             config.update(config.settings);
 
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','default'],['./s3-ingestor.json','success']],[['./s3-ingestor.json',{}]]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','default'],[config.home_full_path + '/s3-ingestor.json','success']],[[config.home_full_path + '/s3-ingestor.json',{}]]);
             test.mockLogger.checkMockLogEntries(['config updated']);
         });
 
         it('should save any non-default values in the config file',function(){
             config.update({test: true});
 
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','default'],['./s3-ingestor.json','success']],[['./s3-ingestor.json',{test: true}]]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','default'],[config.home_full_path + '/s3-ingestor.json','success']],[[config.home_full_path + '/s3-ingestor.json',{test: true}]]);
             test.mockLogger.checkMockLogEntries(['config updated']);
 
             delete config.settings.test;
         });
 
         it('should keep save any existing values in the config file',function(){
-            test.mockHelpers.filesToRead['./s3-ingestor.json'] = {existing: 'test'};
+            test.mockHelpers.filesToRead[config.home_full_path + '/s3-ingestor.json'] = {existing: 'test'};
 
             config.update({existing: 'test',test: true});
 
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','success'],['./s3-ingestor.json','success']],[['./s3-ingestor.json',{test: true,existing: 'test'}]]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','success'],[config.home_full_path + '/s3-ingestor.json','success']],[[config.home_full_path + '/s3-ingestor.json',{test: true,existing: 'test'}]]);
             test.mockLogger.checkMockLogEntries(['config updated']);
 
             delete config.settings.test;
@@ -83,11 +83,11 @@ describe('config',function(){
         });
 
         it('should save any changed values in the config file',function(){
-            test.mockHelpers.filesToRead['./s3-ingestor.json'] = {test: false};
+            test.mockHelpers.filesToRead[config.home_full_path + '/s3-ingestor.json'] = {test: false};
 
             config.update({test: true});
 
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','success'],['./s3-ingestor.json','success']],[['./s3-ingestor.json',{test: true}]]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','success'],[config.home_full_path + '/s3-ingestor.json','success']],[[config.home_full_path + '/s3-ingestor.json',{test: true}]]);
             test.mockLogger.checkMockLogEntries(['config updated']);
 
             delete config.settings.test;
@@ -96,12 +96,12 @@ describe('config',function(){
         it('should replace any policies in the config file',function(){
             var policies = _.clone(config.settings.policies);
 
-            test.mockHelpers.filesToRead['./s3-ingestor.json'] = {test: false,policies: ['old']};
+            test.mockHelpers.filesToRead[config.home_full_path + '/s3-ingestor.json'] = {test: false,policies: ['old']};
             test.mockLogger.debugging = true;
 
             config.update({test: true,policies: ['new']});
 
-            test.mockHelpers.checkMockFiles([['./s3-ingestor.json','success'],['./s3-ingestor.json','success']],[['./s3-ingestor.json',{test: true,policies: ['new']}]]);
+            test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor.json','success'],[config.home_full_path + '/s3-ingestor.json','success']],[[config.home_full_path + '/s3-ingestor.json',{test: true,policies: ['new']}]]);
             test.mockLogger.checkMockLogEntries(['config updated','DEBUG - {"test":true,"policies":["new"]}']);
 
             delete config.settings.test;

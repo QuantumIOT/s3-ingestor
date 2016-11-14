@@ -2,6 +2,7 @@ var test = require('../test');
 
 var PolicyBase = require(process.cwd() + '/lib/policy-base');
 var config = require(process.cwd() + '/lib/config');
+var policySettings = undefined;
 
 describe('PolicyBase',function() {
 
@@ -14,6 +15,8 @@ describe('PolicyBase',function() {
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
         test.configGuard.beginGuarding();
+
+        policySettings = {customizers_path: process.cwd() + '/test/customizers/'};
     });
 
     afterEach(function () {
@@ -42,7 +45,7 @@ describe('PolicyBase',function() {
 
             policy.setupBase();
 
-            policy.ensureCustomizer({}).should.not.be.ok;
+            policy.ensureCustomizer(policySettings).should.not.be.ok;
         });
 
         it('should return falsy if settings.customizer not found',function(){
@@ -50,7 +53,9 @@ describe('PolicyBase',function() {
 
             policy.setupBase();
 
-            policy.ensureCustomizer({customizer: 'unknown'}).should.not.be.ok;
+            policySettings.customizer = 'unknown';
+
+            policy.ensureCustomizer(policySettings).should.not.be.ok;
         });
 
         it('should return falsy if settings.customizer not found',function(){
@@ -60,7 +65,9 @@ describe('PolicyBase',function() {
 
             test.mockHelpers.processCWD = function(){ return process.cwd() + '/test'; };
 
-            policy.ensureCustomizer({customizer: 'test'}).should.be.ok;
+            policySettings.customizer = 'test';
+
+            policy.ensureCustomizer(policySettings).should.be.ok;
         });
     });
 
@@ -78,7 +85,9 @@ describe('PolicyBase',function() {
 
             policy.setupBase();
 
-            (!!policy.buildKey({customizer: 'unknown'},'test')).should.not.be.ok;
+            policySettings.customizer = 'unknown';
+
+            (!!policy.buildKey(policySettings,'test')).should.not.be.ok;
         });
 
         it('should return the result of a customizer if settings.customizer exists',function(){
@@ -88,7 +97,10 @@ describe('PolicyBase',function() {
 
             test.mockHelpers.processCWD = function(){ return process.cwd() + '/test'; };
 
-            policy.buildKey({customizer: 'test',testKEY: 'test-key'},'test').should.eql('test-key');
+            policySettings.customizer = 'test';
+            policySettings.testKEY    = 'test-key';
+
+            policy.buildKey(policySettings,'test').should.eql('test-key');
         });
     });
 });
