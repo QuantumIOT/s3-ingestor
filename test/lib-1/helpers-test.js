@@ -39,10 +39,12 @@ describe('helpers',function(){
 
     describe('saveJSON',function(){
         it('should save a JSON object to a file',function(){
-            var testFile = 'tmp/save-test.json';
-            helpers.saveJSON(testFile,{success: true});
-            fs.readFileSync(testFile).toString().should.eql('{"success":true}');
-            fs.unlinkSync(testFile);
+            fs.mkdir('tmp/',function(error) {
+                var testFile = 'tmp/save-test.json';
+                helpers.saveJSON(testFile,{success: true});
+                fs.readFileSync(testFile).toString().should.eql('{"success":true}');
+                fs.unlinkSync(testFile);
+            });
         });
 
         it('should log an error if saving fails',function(){
@@ -68,14 +70,18 @@ describe('helpers',function(){
         });
 
         it('should return null for invalid json',function(){
-            (!helpers.fileExists('unknown.txt')).should.be.ok;
+            (!!helpers.fileExists('unknown.txt')).should.not.be.ok;
         });
     });
 
     describe('requireLIB',function(){
+        it('should return null if a requested module does not exist',function(){
+            (!!helpers.requireLIB('unknown')).should.not.be.ok;
+        });
+
        it('should pass through a "require" request for /lib files with just the lib file name',function(){
            helpers.requireLIB('helpers').should.eql(helpers);
-       })
+       });
     });
     
     describe('trimPrefix',function(){
@@ -92,4 +98,10 @@ describe('helpers',function(){
             helpers.trimPrefix('string','string').should.eql('');
         });
     });
+
+    describe('isoTimestamp',function(){
+        it('should return the current time as an ISO timestamp',function(){
+            helpers.isoTimestamp().should.match(/^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z$/)
+        });
+    })
 });

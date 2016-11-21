@@ -1,4 +1,4 @@
-# S3-INGESTOR
+# S3-INGESTOR [![Build Status](https://travis-ci.org/QuantumIOT/s3-ingestor.svg?branch=master)](https://travis-ci.org/QuantumIOT/s3-ingestor)
 
 This is a simple utility in NodeJS for pushing files from a local file system to S3 on an ongoing basis.
 

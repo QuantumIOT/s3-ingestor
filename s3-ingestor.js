@@ -36,7 +36,7 @@ emitter.on('startup',function(){
     logger.message('Server running at http://0.0.0.0:' + config.settings.api_port);
 });
 
-emitter.on('phonehome',_.bind(phoneHome.performAction,phoneHome));
+emitter.on('phonehome',_.bind(phoneHome.handlePhoneHomeEvent,phoneHome));
 
 _.defer(function(){ emitter.emit('startup'); }); // start after the 'requirer' has finished what he is doing...
 

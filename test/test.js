@@ -8,6 +8,24 @@ module.exports.expect = module.exports.chai.expect;
 module.exports.mockery = require('mockery');
 module.exports.timekeeper = require('timekeeper');
 
+// CONFIG GUARD
+
+var ConfigGuard = {requirePath: process.cwd() + '/lib/config'};
+
+ConfigGuard.beginGuarding = function(){
+    ConfigGuard.config = require(ConfigGuard.requirePath);
+
+    if (!ConfigGuard.previous) ConfigGuard.previous = JSON.stringify(ConfigGuard.config.settings);
+
+    return ConfigGuard.config;
+};
+
+ConfigGuard.finishGuarding = function(){
+    ConfigGuard.config.settings.should.eql(JSON.parse(ConfigGuard.previous));
+};
+
+module.exports.configGuard = ConfigGuard;
+
 // MOCK HELPERS
 
 var MockHelpers = _.clone(helpers);
@@ -22,14 +40,18 @@ MockHelpers.resetMock = function(){
 };
 
 MockHelpers.checkMockFiles = function(expectedReads,expectedSaves,expectedRequires){
-    MockHelpers.filesRead.should.eql(expectedReads || []);
-    MockHelpers.filesRead = [];
+    try {
+        MockHelpers.filesRead.should.eql(expectedReads || []);
+        MockHelpers.filesRead = [];
 
-    MockHelpers.filesSaved.should.eql(expectedSaves || []);
-    MockHelpers.filesSaved = [];
-    
-    MockHelpers.filesRequired.should.eql(expectedRequires || []);
-    MockHelpers.filesRequired = [];
+        MockHelpers.filesSaved.should.eql(expectedSaves || []);
+        MockHelpers.filesSaved = [];
+
+        MockHelpers.filesRequired.should.eql(expectedRequires || []);
+        MockHelpers.filesRequired = [];
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
@@ -42,14 +64,18 @@ MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
         status = 'default';
     }
     MockHelpers.filesRead.push([filename,status]);
-    return MockHelpers.readError ? errorJSON : MockHelpers.filesToRead[filename] ? MockHelpers.filesToRead[filename] : defaultJSON;
+    return MockHelpers.readError ? errorJSON : MockHelpers.filesToRead[filename] ? _.clone(MockHelpers.filesToRead[filename]) : defaultJSON;
 };
 
 MockHelpers.saveJSON = function(filename, json){
-    MockHelpers.filesSaved.push([filename,json]);
+    var clone = _.clone(json);
+    MockHelpers.filesToRead[filename] = clone;
+    MockHelpers.filesSaved.push([filename,clone]);
 };
 
 MockHelpers.requireLIB = function(path) {
+    if (MockHelpers.filesToRequire[path] === null) return null;
+
     MockHelpers.filesRequired.push(path);
     return MockHelpers.filesToRequire[path] || require(process.cwd() + '/lib/' + path);
 };
@@ -63,20 +89,26 @@ module.exports.mockHelpers = MockHelpers;
 var MockLogger = {debugging: false};
 
 MockLogger.resetMock = function(){
+    MockLogger.showLogs = false;
     MockLogger.logEntries = [];
 };
 
 MockLogger.checkMockLogEntries = function(expectation){
-    MockLogger.logEntries.should.eql(expectation || []);
-    MockLogger.logEntries = [];
+    try {
+        MockLogger.logEntries.should.eql(expectation || []);
+        MockLogger.logEntries = [];
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 MockLogger.message = function(string){
+    if (MockLogger.showLogs) console.log(string);
     MockLogger.logEntries.push(string);
 };
 
 MockLogger.error = function(error) {
-    MockLogger.logEntries.push('ERROR - ' + error);
+    MockLogger.message('ERROR - ' + error);
 };
 
 MockLogger.debug = function(debug){
@@ -94,7 +126,7 @@ var MockS3 = {};
 var MockAwsSdk = {};
 
 MockAwsSdk.S3 = function(options){
-    MockS3.options = options;
+    MockAwsSdk.s3options = options;
     return MockS3;
 };
 
@@ -103,11 +135,54 @@ MockAwsSdk.Credentials = function(access_key_id, secret_access_key){
 };
 
 MockAwsSdk.resetMock = function(){
-    MockS3 = {};
+    MockAwsSdk.s3options = {};
+    MockAwsSdk.called = [];
+    MockAwsSdk.deferAfterS3ListObjects = null;
+    MockAwsSdk.deferAfterS3GetObject = null;
+    MockAwsSdk.deferAfterS3HeadObject = null;
+    MockAwsSdk.deferAfterS3PutObject = null;
+    MockAwsSdk.deferAfterS3Upload = null;
 };
 
-MockAwsSdk.checkMockState = function(){
-  // TODO check mock state when there is some
+MockAwsSdk.checkMockState = function(called){
+    try {
+        MockAwsSdk.called.should.eql(called || []);
+        MockAwsSdk.called = [];
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+MockS3.listObjects = function(options,callback){
+    MockAwsSdk.called.push(['s3.listObjects',options]);
+    (!!MockAwsSdk.deferAfterS3ListObjects).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3ListObjects,callback);
+};
+
+MockS3.getObject = function(options,callback){
+    MockAwsSdk.called.push(['s3.getObject',options]);
+    (!!MockAwsSdk.deferAfterS3GetObject).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3GetObject,callback);
+};
+
+MockS3.headObject = function(options,callback){
+    MockAwsSdk.called.push(['s3.headObject',options]);
+    (!!MockAwsSdk.deferAfterS3HeadObject).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3HeadObject,callback);
+};
+
+MockS3.putObject = function(options,callback){
+    MockAwsSdk.called.push(['s3.putObject',options]);
+    (!!MockAwsSdk.deferAfterS3PutObject).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3PutObject,callback);
+};
+
+MockS3.upload = function(options,callback){
+    var adjusted = _.clone(options);
+    if (adjusted.Body) adjusted.Body = true;
+    MockAwsSdk.called.push(['s3.upload',adjusted]);
+    (!!MockAwsSdk.deferAfterS3Upload).should.be.ok;
+    _.defer(MockAwsSdk.deferAfterS3Upload,callback);
 };
 
 module.exports.mockAwsSdk = MockAwsSdk;
@@ -116,7 +191,7 @@ module.exports.mockAwsSdk = MockAwsSdk;
 
 function MockGlob(pattern, callback){
     var result = MockGlob.lookup[pattern];
-    return result ? callback(null,result) : callback('GLOB error: ' + pattern,null);
+    return result ? callback(null,_.clone(result)) : callback('GLOB error: ' + pattern,null);
 }
 
 MockGlob.resetMock = function(){
@@ -139,6 +214,7 @@ var MockHTTP = {
         MockHTTP.requestError = null;
         MockHTTP.lastOptions = null;
         MockHTTP.written = [];
+        MockHTTP.deferAfterEnd = function() {};
     },
     createServer: function(app){ MockHTTP.app = app; return MockHTTP; },
     listen: function(port){ MockHTTP.port = port; },
@@ -156,6 +232,14 @@ var MockHTTP = {
             MockHTTP.written.push(null);
             MockHTTP.callback && MockHTTP.callback({statusCode: MockHTTP.statusCode,statusMessage: MockHTTP.statusMessage,headers: MockHTTP.headers,on: MockHTTP.on});
             MockHTTP.callback = null;
+        }
+        _.defer(MockHTTP.deferAfterEnd);
+    },
+    checkWritten: function(written){
+        try{
+            MockHTTP.written.should.eql(written || []);
+        }catch(error){
+            console.log(error);
         }
     }
 };
@@ -176,6 +260,7 @@ var MockHTTPS = {
         MockHTTPS.requestError = null;
         MockHTTPS.lastOptions = null;
         MockHTTPS.written = [];
+        MockHTTPS.deferAfterEnd = function(){};
     },
     createServer: function(app){ MockHTTPS.app = app; return MockHTTPS; },
     listen: function(port){ MockHTTPS.port = port; },
@@ -193,6 +278,14 @@ var MockHTTPS = {
             MockHTTPS.written.push(null);
             MockHTTPS.callback && MockHTTPS.callback({statusCode: MockHTTPS.statusCode,statusMessage: MockHTTPS.statusMessage,headers: MockHTTPS.headers,on: MockHTTPS.on});
             MockHTTPS.callback = null;
+        }
+        _.defer(MockHTTPS.deferAfterEnd);
+    },
+    checkWritten: function(written){
+        try{
+            MockHTTPS.written.should.eql(written || []);
+        }catch(error){
+            console.log(error);
         }
     }
 };
@@ -246,6 +339,7 @@ module.exports.mockNET = MockNET;
 var MockRedis = {events: {},calls: []};
 
 MockRedis.resetMock = function(){
+    MockRedis.deferThen = false;
     MockRedis.clientException = null;
     MockRedis.events = {};
     MockRedis.errors = {};
@@ -257,7 +351,8 @@ MockRedis.resetMock = function(){
         hgetall: {},
         hmset: {},
         llen: {},
-        lpush: {}
+        lpush: {},
+        rpush: {}
     };
 };
 
@@ -282,7 +377,10 @@ MockRedis.createClient = function () {
             if (!MockRedis.clientException){
                 var result = MockRedis.results;
                 MockRedis.results = null;
-                callback && callback(result);
+                if (MockRedis.deferThen)
+                    _.defer(function(){callback && callback(result)});
+                else
+                    callback && callback(result);
             }
             return client;
         },
@@ -366,6 +464,13 @@ MockRedis.createClient = function () {
         lpush: function(key,value) {
             MockRedis.calls.push({lpush: [key,value]});
             var list = MockRedis.lookup.lpush[key] = MockRedis.lookup.lpush[key] || [];
+            list.unshift(value);
+            MockRedis.results = null;
+            return client;
+        },
+        rpush: function(key,value) {
+            MockRedis.calls.push({rpush: [key,value]});
+            var list = MockRedis.lookup.rpush[key] = MockRedis.lookup.rpush[key] || [];
             list.unshift(value);
             MockRedis.results = null;
             return client;
