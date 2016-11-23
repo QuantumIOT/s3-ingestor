@@ -37,6 +37,7 @@ MockHelpers.resetMock = function(){
     MockHelpers.filesSaved = [];
     MockHelpers.filesToRequire = {};
     MockHelpers.filesRequired = [];
+    helpers.resetLogger();
 };
 
 MockHelpers.checkMockFiles = function(expectedReads,expectedSaves,expectedRequires){

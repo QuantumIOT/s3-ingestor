@@ -16,7 +16,7 @@ describe('PolicyUpload',function() {
 
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','lodash',configModule]);
+        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',configModule]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('glob', test.mockGlob);

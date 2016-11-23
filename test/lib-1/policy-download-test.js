@@ -10,7 +10,7 @@ describe('PolicyDownload',function() {
     beforeEach(function () {
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws',test.configGuard.requirePath]);
+        test.mockery.registerAllowables(['./aws','./logger',test.configGuard.requirePath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('./helpers', test.mockHelpers);

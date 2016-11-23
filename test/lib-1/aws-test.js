@@ -8,7 +8,7 @@ describe('AWS',function(){
     beforeEach(function () {
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables([test.configGuard.requirePath]);
+        test.mockery.registerAllowables(['./logger',test.configGuard.requirePath]);
         test.mockery.registerMock('aws-sdk',test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('./helpers',test.mockHelpers);

@@ -14,17 +14,18 @@ describe('PhoneHome',function() {
     var oldHeartbeatPeriod = null;
 
     beforeEach(function () {
+        var hostHandlerPath = process.cwd() + '/lib/host-basic';
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','lodash',test.configGuard.requirePath]);
+        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,hostHandlerPath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
         test.mockHTTPS.resetMock();
-        test.mockery.registerMock('./helpers', test.mockHelpers);
-        test.mockHelpers.resetMock();
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
+        test.mockery.registerMock('./helpers', test.mockHelpers);
+        test.mockHelpers.resetMock();
 
         config = test.configGuard.beginGuarding();
         test.mockHelpers.resetMock();
@@ -60,6 +61,7 @@ describe('PhoneHome',function() {
             config.settings.policies = [{handler: 'test'}];
             phoneHome.resetPolicies();
             test.mockLogger.checkMockLogEntries(['no-op reset: test']);
+            test.mockHelpers.checkMockFiles(null,null,['host-basic']);
         })
     });
 
@@ -76,6 +78,7 @@ describe('PhoneHome',function() {
                         'begin processing policies',
                         'end processing policies'
                     ]);
+                    test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                     done();
                 });
         });
@@ -92,7 +95,7 @@ describe('PhoneHome',function() {
 
             phoneHome.handlerForPolicy({});
 
-            test.mockHelpers.checkMockFiles([],[],['policy-upload']);
+            test.mockHelpers.checkMockFiles([],[],['host-basic','policy-upload']);
         });
     });
 
@@ -109,6 +112,7 @@ describe('PhoneHome',function() {
             phoneHome.performHostAction('upgrade',{test: true}).then(function(){
                 success.should.be.ok;
                 test.mockLogger.checkMockLogEntries(['perform host action: upgrade']);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
 
                 done();
             },function(){ true.should.not.be.ok; done(); });
@@ -126,6 +130,7 @@ describe('PhoneHome',function() {
             phoneHome.performHostAction('reboot',{test: true}).then(function(){
                 success.should.be.ok;
                 test.mockLogger.checkMockLogEntries(['perform host action: reboot']);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -135,6 +140,7 @@ describe('PhoneHome',function() {
 
             test.mockHelpers.processExit = function(){
                 test.mockLogger.checkMockLogEntries(['perform host action: restart']);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             };
 
@@ -163,7 +169,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host output: {"state":"test"}'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',null]);
-                test.mockHelpers.checkMockFiles([[ config.home_full_path + '/s3-ingestor-keys.json','default']]);
+                test.mockHelpers.checkMockFiles([[ config.home_full_path + '/s3-ingestor-keys.json','default']],null,['host-basic']);
                 test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}]]);
 
                 done();
@@ -195,7 +201,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host output: {"state":"test"}'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"download-error"}}',null]);
-                test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']]);
+                test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']],null,['host-basic']);
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
                     ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
@@ -241,7 +247,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host output: {"state":"test"}'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"writeFile-error"}}',null]);
-                test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']]);
+                test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']],null,['host-basic']);
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
                     ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
@@ -273,6 +279,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             };
 
@@ -298,6 +305,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test","action":"upgrade+error","error":"process-error"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -322,6 +330,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -344,6 +353,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test","action":"reboot+error","error":"process-error"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+                test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -368,7 +378,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host output: {"state":"test"}'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',null]);
-                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],[[phoneHome.contextFile,{state: 'test'}]]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],[[phoneHome.contextFile,{state: 'test'}]],['host-basic']);
 
                 (!!phoneHome.checkTimer).should.be.ok;
 
@@ -399,7 +409,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host output: {"state":"test"}'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"unregistered","version":"TEST-VERSION","action":"heartbeat","info":' + infoString + '}}',null]);
-                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],[[phoneHome.contextFile,{state: 'test'}]]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],[[phoneHome.contextFile,{state: 'test'}]],['host-basic']);
 
                 (!!phoneHome.checkTimer).should.be.ok;
 
@@ -428,11 +438,11 @@ describe('PhoneHome',function() {
                     'phone home: startup',
                     'DEBUG - host input: {"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',
                     'DEBUG - host output: {',
-                    'ERROR - SyntaxError: Unexpected end of input',
-                    'ERROR - phone home error - host output error - SyntaxError: Unexpected end of input'
+                    'ERROR - json error: SyntaxError: Unexpected end of input',
+                    'ERROR - phone home error - no json received'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',null]);
-                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],null,['host-basic']);
 
                 (!!phoneHome.checkTimer).should.be.ok;
                 phoneHome.clearCheckTimer();
@@ -466,7 +476,7 @@ describe('PhoneHome',function() {
                 ]);
 
                 test.mockHTTPS.checkWritten(['{"context":{"state":"configured","version":"TEST-VERSION","action":"heartbeat","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',null]);
-                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'success']],[[phoneHome.contextFile,{state: 'configured'}]]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'success']],[[phoneHome.contextFile,{state: 'configured'}]],['host-basic']);
 
                 (!!phoneHome.checkTimer).should.be.ok;
                 phoneHome.clearCheckTimer();
@@ -501,7 +511,7 @@ describe('PhoneHome',function() {
                     '{"context":{"state":"unregistered","version":"TEST-VERSION","action":"heartbeat","info":{"hostname":"' + os.hostname() + '"}}}',null,
                     '{"context":{"state":"discovered","version":"TEST-VERSION","action":"report","info":{"hostname":"' + os.hostname() + '"},"result":' + configJSON + '}}',null
                 ]);
-                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],[[phoneHome.contextFile,{state: 'discovered'}]]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],[[phoneHome.contextFile,{state: 'discovered'}]],['host-basic']);
 
                 (!!phoneHome.checkTimer).should.be.ok;
                 phoneHome.clearCheckTimer();
@@ -543,7 +553,8 @@ describe('PhoneHome',function() {
                 ]);
                 test.mockHelpers.checkMockFiles(
                     [[phoneHome.contextFile,'success'],[config.home_full_path + '/s3-ingestor.json','success'],[config.home_full_path + '/s3-ingestor.json','success']],
-                    [[phoneHome.contextFile,{state: 'configured'}],[config.home_full_path + '/s3-ingestor.json',{debug: true,test: 123}]]
+                    [[phoneHome.contextFile,{state: 'configured'}],[config.home_full_path + '/s3-ingestor.json',{debug: true,test: 123}]],
+                    ['host-basic']
                 );
 
                 (!!phoneHome.checkTimer).should.be.ok;
@@ -603,7 +614,8 @@ describe('PhoneHome',function() {
                 ]);
                 test.mockHelpers.checkMockFiles(
                     [[phoneHome.contextFile,'success'],[config.settings.aws_keys_file,'default']],
-                    [[phoneHome.contextFile,{state: 'configured'}]]
+                    [[phoneHome.contextFile,{state: 'configured'}]],
+                    ['host-basic']
                 );
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
