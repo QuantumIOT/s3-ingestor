@@ -422,7 +422,33 @@ describe('PhoneHome',function() {
             };
         });
 
-        it('should do catch an error if unable to connect to the server',function(done){
+        it('should do catch an error if it receives no data',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            phoneHome.handlePhoneHomeEvent('startup');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(null);
+            };
+
+            phoneHome.eventFinished = function(){
+                var infoString = JSON.stringify(phoneHome.readLocalInfo(true));
+                test.mockLogger.checkMockLogEntries([
+                    'phone home: startup',
+                    'DEBUG - host input: {"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',
+                    "ERROR - phone home error - TypeError: Cannot read property 'toString' of null"
+                ]);
+                test.mockHTTPS.checkWritten(['{"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',null]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],null,['host-basic']);
+
+                (!!phoneHome.checkTimer).should.be.ok;
+                phoneHome.clearCheckTimer();
+                done();
+            };
+        });
+
+        it('should do catch an error if it receives malformed json',function(done){
             var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
 
             phoneHome.handlePhoneHomeEvent('startup');

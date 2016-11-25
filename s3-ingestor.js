@@ -3,8 +3,9 @@ var http = require('http');
 var events = require('events');
 
 var helpers = require('./lib/helpers');
-var logger = require('./lib/logger');
-var config = require ('./lib/config');
+var logger  = require('./lib/logger');
+var config  = require('./lib/config');
+var host    = require(config.settings.host_handler);
 
 var PhoneHome = require('./lib/phone-home');
 
@@ -14,7 +15,7 @@ var phoneHome = new PhoneHome(emitter,VERSION);
 
 emitter.on('startup',function(){
     logger.message('-----------------------------------------------------------');
-    emitter.emit('phonehome','startup');
+    emitter.emit('phonehome',host.registrationRequired() ? 'register' : 'startup');
 
     var apiServer = http.createServer(function(req,res) {
         var context = phoneHome.readContext();
