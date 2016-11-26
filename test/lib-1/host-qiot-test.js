@@ -18,12 +18,15 @@ describe('PhoneHome',function() {
         test.mockHelpers.resetMock();
 
         config = test.configGuard.beginGuarding();
+
         test.mockHelpers.resetMock();
 
         test.mockLogger.debugging = true;
     });
 
     afterEach(function () {
+        delete config.settings.qiot_account_token;
+
         test.mockLogger.debugging = false;
 
         test.configGuard.finishGuarding();
@@ -116,9 +119,25 @@ describe('PhoneHome',function() {
         });
     });
 
+    describe('contact - no account token',function(){
+        it('should fail without an account token',function(done){
+            var host = new QiotHost();
+
+            host.contact({}).then(function(result) { done('unexpected success'); },function(error){
+                error.should.eql('no account token');
+                done();
+            });
+        })
+    });
+
     describe('contact - register', function () {
         beforeEach(function(){
+            config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
             test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: '00:00:00:00:00:00'}]}; }
+        });
+
+        afterEach(function(){
+            delete config.settings.qiot_account_token;
         });
 
         it('should report that registration is required',function(){
@@ -146,6 +165,7 @@ describe('PhoneHome',function() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': 'QIOT ACCOUNT-TOKEN',
                             'Content-Length': 89
                         }
                     });
@@ -191,7 +211,6 @@ describe('PhoneHome',function() {
         });
 
         afterEach(function(){
-            delete config.settings.qiot_account_token;
             delete config.settings.qiot_thing_token;
         });
 
