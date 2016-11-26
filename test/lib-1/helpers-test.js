@@ -22,6 +22,20 @@ describe('helpers',function(){
         test.mockery.disable();
     });
 
+    describe('bestPort',function(){
+        it('should choose 80 for http',function(){
+            helpers.bestPort('http',8000).should.eql(80);
+        });
+
+        it('should choose 443 for https',function(){
+            helpers.bestPort('https',8000).should.eql(443);
+        })
+
+        it('should choose passed-in default for unknown service',function(){
+            helpers.bestPort('???',8000).should.eql(8000);
+        })
+    });
+
     describe('readJSON',function(){
         it('should read a JSON file if it exists',function(){
             helpers.readJSON(process.cwd() + '/test/data/test.json',{result: 'default'},{result: 'error'}).should.eql({state: 'test'});

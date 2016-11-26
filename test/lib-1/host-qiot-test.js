@@ -159,7 +159,7 @@ describe('PhoneHome',function() {
             host.contact({}).then(function(context){
                 test.asyncDone(done,function(){
                     test.mockHTTPS.lastOptions.should.eql({
-                        host: 'unknown-host-dns',
+                        host: 'api.qiot.io',
                         port: 443,
                         path: '/1/r',
                         method: 'POST',
@@ -227,7 +227,7 @@ describe('PhoneHome',function() {
             host.contact({}).then(function(context){
                 test.asyncDone(done,function(){
                     test.mockHTTPS.lastOptions.should.eql({
-                        host: 'unknown-host-dns',
+                        host: 'api.qiot.io',
                         port: 443,
                         path: '/1/l/THING-TOKEN',
                         method: 'POST',
