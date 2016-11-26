@@ -14,10 +14,11 @@ describe('PhoneHome',function() {
     var oldHeartbeatPeriod = null;
 
     beforeEach(function () {
-        var hostHandlerPath = process.cwd() + '/lib/host-basic';
+        var basicHandlerPath = process.cwd() + '/lib/host-basic';
+        var qiotHandlerPath = process.cwd() + '/lib/host-qiot';
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,hostHandlerPath]);
+        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
@@ -356,6 +357,89 @@ describe('PhoneHome',function() {
                 test.mockHelpers.checkMockFiles(null,null,['host-basic']);
                 done();
             },function(){ true.should.not.be.ok; done(); });
+        });
+    });
+
+    describe('registration',function(){
+        beforeEach(function(){
+            config.settings.host_handler = 'host-qiot';
+            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: '00:00:00:00:00:00'}]}; }
+        });
+
+        afterEach(function(){
+            config.settings.host_handler = 'host-basic';
+            delete config.settings.qiot_account_token;
+            delete config.settings.qiot_collection_token;
+            delete config.settings.qiot_thing_token;
+        });
+
+        it('should do nothing on startup if registration is required and not received',function(done){
+
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            phoneHome.handlePhoneHomeEvent('register');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data('{}');
+            };
+
+            phoneHome.eventFinished = function(){
+                test.asyncMidpoint(done,function(){
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: register',
+                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host output: {}',
+                        'ERROR - phone home error - no registration received'
+                    ]);
+                    test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']],null,['host-qiot']);
+
+                    (!!phoneHome.checkTimer).should.be.ok;
+                });
+
+                emitter.on('phonehome',function(action){
+                    test.asyncDone(done,function(){
+                        phoneHome.clearCheckTimer();
+                        action.should.eql('heartbeat');
+                    });
+                });
+
+            };
+        });
+
+        it('should trigger a normal startup after registration is received',function(done){
+
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            emitter.on('phonehome',function(action){
+                test.asyncDone(done,function(){
+                    phoneHome.clearCheckTimer();
+
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: register',
+                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
+                        'DEBUG - registration received',
+                        'config updated',
+                        'DEBUG - {"qiot_account_token":"ACCOUNT-TOKEN","qiot_collection_token":"COLLECTION-TOKEN","qiot_thing_token":"THING-TOKEN"}'
+                    ]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHelpers.checkMockFiles(
+                        [[phoneHome.contextFile,'default'],[config.home_full_path + '/s3-ingestor.json','default'],[config.home_full_path + '/s3-ingestor.json','success']],
+                        [[phoneHome.contextFile,{state: 'registered'}],[config.home_full_path + '/s3-ingestor.json',{qiot_account_token: 'ACCOUNT-TOKEN',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'}]],
+                        ['host-qiot']);
+
+                    action.should.eql('startup');
+                });
+            });
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN',collection_token: 'COLLECTION-TOKEN',token: 'THING-TOKEN'}}));
+            };
+
+            phoneHome.handlePhoneHomeEvent('register');
         });
     });
     

@@ -8,6 +8,27 @@ module.exports.expect = module.exports.chai.expect;
 module.exports.mockery = require('mockery');
 module.exports.timekeeper = require('timekeeper');
 
+// try/catch handler for async tests
+
+module.exports.asyncDone = function(done,callback){
+    try{
+        callback();
+        done();
+    }catch (error){
+        console.log(error);
+        done(error);
+    }
+};
+
+module.exports.asyncMidpoint = function(done,callback){
+    try{
+        callback();
+    }catch (error){
+        console.log(error);
+        done(error);
+    }
+};
+
 // CONFIG GUARD
 
 var ConfigGuard = {requirePath: process.cwd() + '/lib/config'};
@@ -41,18 +62,14 @@ MockHelpers.resetMock = function(){
 };
 
 MockHelpers.checkMockFiles = function(expectedReads,expectedSaves,expectedRequires){
-    try {
-        MockHelpers.filesRead.should.eql(expectedReads || []);
-        MockHelpers.filesRead = [];
+    MockHelpers.filesRead.should.eql(expectedReads || []);
+    MockHelpers.filesRead = [];
 
-        MockHelpers.filesSaved.should.eql(expectedSaves || []);
-        MockHelpers.filesSaved = [];
+    MockHelpers.filesSaved.should.eql(expectedSaves || []);
+    MockHelpers.filesSaved = [];
 
-        MockHelpers.filesRequired.should.eql(expectedRequires || []);
-        MockHelpers.filesRequired = [];
-    } catch (error) {
-        console.log(error);
-    }
+    MockHelpers.filesRequired.should.eql(expectedRequires || []);
+    MockHelpers.filesRequired = [];
 };
 
 MockHelpers.readJSON = function(filename, defaultJSON, errorJSON){
@@ -95,12 +112,8 @@ MockLogger.resetMock = function(){
 };
 
 MockLogger.checkMockLogEntries = function(expectation){
-    try {
-        MockLogger.logEntries.should.eql(expectation || []);
-        MockLogger.logEntries = [];
-    } catch (error) {
-        console.log(error);
-    }
+    MockLogger.logEntries.should.eql(expectation || []);
+    MockLogger.logEntries = [];
 };
 
 MockLogger.message = function(string){
@@ -146,12 +159,8 @@ MockAwsSdk.resetMock = function(){
 };
 
 MockAwsSdk.checkMockState = function(called){
-    try {
-        MockAwsSdk.called.should.eql(called || []);
-        MockAwsSdk.called = [];
-    } catch (error) {
-        console.log(error);
-    }
+    MockAwsSdk.called.should.eql(called || []);
+    MockAwsSdk.called = [];
 };
 
 MockS3.listObjects = function(options,callback){
@@ -237,11 +246,7 @@ var MockHTTP = {
         _.defer(MockHTTP.deferAfterEnd);
     },
     checkWritten: function(written){
-        try{
-            MockHTTP.written.should.eql(written || []);
-        }catch(error){
-            console.log(error);
-        }
+        MockHTTP.written.should.eql(written || []);
     }
 };
 
@@ -283,11 +288,7 @@ var MockHTTPS = {
         _.defer(MockHTTPS.deferAfterEnd);
     },
     checkWritten: function(written){
-        try{
-            MockHTTPS.written.should.eql(written || []);
-        }catch(error){
-            console.log(error);
-        }
+        MockHTTPS.written.should.eql(written || []);
     }
 };
 
