@@ -7,8 +7,10 @@ describe('helpers',function(){
     var helpers = null;
 
     beforeEach(function () {
+        var basicHandlerPath = process.cwd() + '/lib/host-basic';
+        var qiotHandlerPath = process.cwd() + '/lib/host-qiot';
         test.mockery.enable();
-        test.mockery.registerAllowables([helperPath]);
+        test.mockery.registerAllowables(['https','lodash','./config','./helpers',helperPath,basicHandlerPath,qiotHandlerPath]);
         test.mockery.warnOnReplace(false);
         test.mockery.registerMock('./logger',test.mockLogger);
         test.mockLogger.resetMock();
@@ -29,11 +31,28 @@ describe('helpers',function(){
 
         it('should choose 443 for https',function(){
             helpers.bestPort('https',8000).should.eql(443);
-        })
+        });
 
         it('should choose passed-in default for unknown service',function(){
             helpers.bestPort('???',8000).should.eql(8000);
         })
+    });
+
+    describe('bestHost',function(){
+        it('should return a BasicHost by default',function(){
+            helpers.bestHost({}).should.be.ok;
+            helpers.lastHostName.should.eql('host-basic');
+        });
+
+        it('should return a QiotHost if settings has a qiot_account_token',function(){
+            helpers.bestHost({qiot_account_token: 'ACCOUNT-TOKEN'}).should.be.ok;
+            helpers.lastHostName.should.eql('host-qiot');
+        });
+
+        it('should return a QiotHost if explicitly in the settings',function(){
+            helpers.bestHost({host_handler: 'host-qiot'}).should.be.ok;
+            helpers.lastHostName.should.eql('host-qiot');
+        });
     });
 
     describe('readJSON',function(){
