@@ -14,17 +14,19 @@ describe('PhoneHome',function() {
     var oldHeartbeatPeriod = null;
 
     beforeEach(function () {
+        var basicHandlerPath = process.cwd() + '/lib/host-basic';
+        var qiotHandlerPath = process.cwd() + '/lib/host-qiot';
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','lodash',test.configGuard.requirePath]);
+        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
         test.mockHTTPS.resetMock();
-        test.mockery.registerMock('./helpers', test.mockHelpers);
-        test.mockHelpers.resetMock();
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
+        test.mockery.registerMock('./helpers', test.mockHelpers);
+        test.mockHelpers.resetMock();
 
         config = test.configGuard.beginGuarding();
         test.mockHelpers.resetMock();
@@ -126,6 +128,7 @@ describe('PhoneHome',function() {
             phoneHome.performHostAction('reboot',{test: true}).then(function(){
                 success.should.be.ok;
                 test.mockLogger.checkMockLogEntries(['perform host action: reboot']);
+
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -135,6 +138,7 @@ describe('PhoneHome',function() {
 
             test.mockHelpers.processExit = function(){
                 test.mockLogger.checkMockLogEntries(['perform host action: restart']);
+
                 done();
             };
 
@@ -273,6 +277,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+
                 done();
             };
 
@@ -298,6 +303,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test","action":"upgrade+error","error":"process-error"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -322,6 +328,7 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+
                 done();
             },function(){ true.should.not.be.ok; done(); });
         });
@@ -344,8 +351,91 @@ describe('PhoneHome',function() {
                     'DEBUG - host input: {"context":{"state":"test","action":"reboot+error","error":"process-error"}}',
                     'DEBUG - host output: {"state":"test"}'
                 ]);
+
                 done();
             },function(){ true.should.not.be.ok; done(); });
+        });
+    });
+
+    describe('registration',function(){
+        beforeEach(function(){
+            config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
+            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: '00:00:00:00:00:00'}]}; }
+        });
+
+        afterEach(function(){
+            delete config.settings.qiot_account_token;
+            delete config.settings.qiot_collection_token;
+            delete config.settings.qiot_thing_token;
+        });
+
+        it('should do nothing on startup if registration is required and not received',function(done){
+
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            phoneHome.handlePhoneHomeEvent('register');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data('{}');
+            };
+
+            phoneHome.eventFinished = function(){
+                test.asyncMidpoint(done,function(){
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: register',
+                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host output: {}',
+                        'ERROR - phone home error - no registration received'
+                    ]);
+                    test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']]);
+
+                    (!!phoneHome.checkTimer).should.be.ok;
+                });
+
+                emitter.on('phonehome',function(action){
+                    test.asyncDone(done,function(){
+                        phoneHome.clearCheckTimer();
+                        action.should.eql('heartbeat');
+                    });
+                });
+
+            };
+        });
+
+        it('should trigger a normal startup after registration is received',function(done){
+
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            emitter.on('phonehome',function(action){
+                test.asyncDone(done,function(){
+                    phoneHome.clearCheckTimer();
+
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: register',
+                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
+                        'DEBUG - registration received',
+                        'config updated',
+                        'DEBUG - {"qiot_account_token":"ACCOUNT-TOKEN","qiot_collection_token":"COLLECTION-TOKEN","qiot_thing_token":"THING-TOKEN"}'
+                    ]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHelpers.checkMockFiles(
+                        [[phoneHome.contextFile,'default'],[config.config_file,'default'],[config.config_file,'success']],
+                        [[phoneHome.contextFile,{state: 'registered'}],[config.config_file,{qiot_account_token: 'ACCOUNT-TOKEN',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'}]]
+                    );
+
+                    action.should.eql('startup');
+                });
+            });
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN',collection_token: 'COLLECTION-TOKEN',token: 'THING-TOKEN'}}));
+            };
+
+            phoneHome.handlePhoneHomeEvent('register');
         });
     });
     
@@ -412,7 +502,33 @@ describe('PhoneHome',function() {
             };
         });
 
-        it('should do catch an error if unable to connect to the server',function(done){
+        it('should do catch an error if it receives no data',function(done){
+            var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
+
+            phoneHome.handlePhoneHomeEvent('startup');
+
+            test.mockHTTPS.deferAfterEnd = function() {
+                (!!test.mockHTTPS.events.data).should.be.ok;
+                test.mockHTTPS.events.data(null);
+            };
+
+            phoneHome.eventFinished = function(){
+                var infoString = JSON.stringify(phoneHome.readLocalInfo(true));
+                test.mockLogger.checkMockLogEntries([
+                    'phone home: startup',
+                    'DEBUG - host input: {"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',
+                    "ERROR - phone home error - TypeError: Cannot read property 'toString' of null"
+                ]);
+                test.mockHTTPS.checkWritten(['{"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',null]);
+                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']]);
+
+                (!!phoneHome.checkTimer).should.be.ok;
+                phoneHome.clearCheckTimer();
+                done();
+            };
+        });
+
+        it('should do catch an error if it receives malformed json',function(done){
             var phoneHome = new PhoneHome(emitter,'TEST-VERSION');
 
             phoneHome.handlePhoneHomeEvent('startup');
@@ -428,8 +544,8 @@ describe('PhoneHome',function() {
                     'phone home: startup',
                     'DEBUG - host input: {"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',
                     'DEBUG - host output: {',
-                    'ERROR - SyntaxError: Unexpected end of input',
-                    'ERROR - phone home error - host output error - SyntaxError: Unexpected end of input'
+                    'ERROR - json error: SyntaxError: Unexpected end of input',
+                    'ERROR - phone home error - no json received'
                 ]);
                 test.mockHTTPS.checkWritten(['{"context":{"state":"unregistered","version":"TEST-VERSION","action":"startup","info":' + infoString + '}}',null]);
                 test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']]);
@@ -514,7 +630,7 @@ describe('PhoneHome',function() {
 
             config.settings.policies = [];
             test.mockHelpers.filesToRead[phoneHome.contextFile] = {state: 'discovered'};
-            test.mockHelpers.filesToRead[config.home_full_path + '/s3-ingestor.json'] = {debug: true};
+            test.mockHelpers.filesToRead[config.config_file] = {debug: true};
 
             phoneHome.handlePhoneHomeEvent('wakeup');
 
@@ -542,8 +658,8 @@ describe('PhoneHome',function() {
                     '{"context":{"state":"configured","version":"TEST-VERSION","action":"ack","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',null
                 ]);
                 test.mockHelpers.checkMockFiles(
-                    [[phoneHome.contextFile,'success'],[config.home_full_path + '/s3-ingestor.json','success'],[config.home_full_path + '/s3-ingestor.json','success']],
-                    [[phoneHome.contextFile,{state: 'configured'}],[config.home_full_path + '/s3-ingestor.json',{debug: true,test: 123}]]
+                    [[phoneHome.contextFile,'success'],[config.config_file,'success'],[config.config_file,'success']],
+                    [[phoneHome.contextFile,{state: 'configured'}],[config.config_file,{debug: true,test: 123}]]
                 );
 
                 (!!phoneHome.checkTimer).should.be.ok;
@@ -559,7 +675,7 @@ describe('PhoneHome',function() {
 
             config.settings.policies = [];
             test.mockHelpers.filesToRead[phoneHome.contextFile] = {state: 'configured'};
-            test.mockHelpers.filesToRead[config.home_full_path + '/s3-ingestor.json'] = {debug: true};
+            test.mockHelpers.filesToRead[config.config_file] = {debug: true};
 
             phoneHome.handlePhoneHomeEvent('wakeup');
 
