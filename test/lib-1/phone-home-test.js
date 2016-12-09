@@ -571,22 +571,23 @@ describe('PhoneHome',function() {
             };
 
             phoneHome.eventFinished = function(){
-                test.mockLogger.checkMockLogEntries([
-                    'phone home: heartbeat',
-                    'begin processing policies',
-                    'ERROR - handler not found: test',
-                    'no-op apply: test',
-                    'end processing policies',
-                    'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"heartbeat","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',
-                    'DEBUG - host output: {"state":"configured"}'
-                ]);
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: heartbeat',
+                        'begin processing policies',
+                        'ERROR - handler not found: test',
+                        'no-op apply: test',
+                        'end processing policies',
+                        'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"heartbeat","info":{"hostname":"' + os.hostname() + '"}}}',
+                        'DEBUG - host output: {"state":"configured"}'
+                    ]);
 
-                test.mockHTTPS.checkWritten(['{"context":{"state":"configured","version":"TEST-VERSION","action":"heartbeat","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',null]);
-                test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'success']],[[phoneHome.contextFile,{state: 'configured'}]]);
+                    test.mockHTTPS.checkWritten(['{"context":{"state":"configured","version":"TEST-VERSION","action":"heartbeat","info":{"hostname":"' + os.hostname() + '"}}}',null]);
+                    test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'success']],[[phoneHome.contextFile,{state: 'configured'}]]);
 
-                (!!phoneHome.checkTimer).should.be.ok;
-                phoneHome.clearCheckTimer();
-                done();
+                    (!!phoneHome.checkTimer).should.be.ok;
+                    phoneHome.clearCheckTimer();
+                });
             };
         });
 
@@ -642,31 +643,32 @@ describe('PhoneHome',function() {
             };
 
             phoneHome.eventFinished = function(){
-                test.mockLogger.checkMockLogEntries([
-                    'phone home: wakeup',
-                    'DEBUG - host input: {"context":{"state":"discovered","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',
-                    'DEBUG - host output: {"state":"configured","config":{"test":123}}',
-                    'config updated',
-                    'DEBUG - {"debug":true,"test":123}',
-                    'begin processing policies',
-                    'end processing policies',
-                    'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"ack","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',
-                    'DEBUG - host output: {"state":"configured"}'
-                ]);
-                test.mockHTTPS.checkWritten([
-                    '{"context":{"state":"discovered","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',null,
-                    '{"context":{"state":"configured","version":"TEST-VERSION","action":"ack","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',null
-                ]);
-                test.mockHelpers.checkMockFiles(
-                    [[phoneHome.contextFile,'success'],[config.config_file,'success'],[config.config_file,'success']],
-                    [[phoneHome.contextFile,{state: 'configured'}],[config.config_file,{debug: true,test: 123}]]
-                );
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: wakeup',
+                        'DEBUG - host input: {"context":{"state":"discovered","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',
+                        'DEBUG - host output: {"state":"configured","config":{"test":123}}',
+                        'config updated',
+                        'DEBUG - {"debug":true,"test":123}',
+                        'begin processing policies',
+                        'end processing policies',
+                        'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"ack","info":{"hostname":"' + os.hostname() + '"}}}',
+                        'DEBUG - host output: {"state":"configured"}'
+                    ]);
+                    test.mockHTTPS.checkWritten([
+                        '{"context":{"state":"discovered","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',null,
+                        '{"context":{"state":"configured","version":"TEST-VERSION","action":"ack","info":{"hostname":"' + os.hostname() + '"}}}',null
+                    ]);
+                    test.mockHelpers.checkMockFiles(
+                        [[phoneHome.contextFile,'success'],[config.config_file,'success'],[config.config_file,'success']],
+                        [[phoneHome.contextFile,{state: 'configured'}],[config.config_file,{debug: true,test: 123}]]
+                    );
 
-                (!!phoneHome.checkTimer).should.be.ok;
-                phoneHome.clearCheckTimer();
-                config.settings.debug = false;
-                delete config.settings.test;
-                done();
+                    (!!phoneHome.checkTimer).should.be.ok;
+                    phoneHome.clearCheckTimer();
+                    config.settings.debug = false;
+                    delete config.settings.test;
+                });
             };
         });
 
@@ -701,34 +703,35 @@ describe('PhoneHome',function() {
             };
 
             phoneHome.eventFinished = function(){
-                test.mockLogger.checkMockLogEntries([
-                    'phone home: wakeup',
-                    'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',
-                    'DEBUG - host output: {"state":"configured","action":"customizers"}',
-                    'perform host action: customizers',
-                    'DEBUG - customizer count: 1',
-                    'DEBUG - customizer: test',
-                    'begin processing policies',
-                    'end processing policies',
-                    'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"ack+customizers","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',
-                    'DEBUG - host output: {"state":"configured"}'
-                ]);
-                test.mockHTTPS.checkWritten([
-                    '{"context":{"state":"configured","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',null,
-                    '{"context":{"state":"configured","version":"TEST-VERSION","action":"ack+customizers","info":{"hostname":"' + os.hostname() + '"},"result":{"added":0,"updated":0,"skipped":0,"ignored":0,"unchanged":0}}}',null
-                ]);
-                test.mockHelpers.checkMockFiles(
-                    [[phoneHome.contextFile,'success'],[config.settings.aws_keys_file,'default']],
-                    [[phoneHome.contextFile,{state: 'configured'}]]
-                );
-                test.mockAwsSdk.checkMockState([
-                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
-                    ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
-                ]);
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'phone home: wakeup',
+                        'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',
+                        'DEBUG - host output: {"state":"configured","action":"customizers"}',
+                        'perform host action: customizers',
+                        'DEBUG - customizer count: 1',
+                        'DEBUG - customizer: test',
+                        'begin processing policies',
+                        'end processing policies',
+                        'DEBUG - host input: {"context":{"state":"configured","version":"TEST-VERSION","action":"ack+customizers","info":{"hostname":"' + os.hostname() + '"}}}',
+                        'DEBUG - host output: {"state":"configured"}'
+                    ]);
+                    test.mockHTTPS.checkWritten([
+                        '{"context":{"state":"configured","version":"TEST-VERSION","action":"wakeup","info":{"hostname":"' + os.hostname() + '"}}}',null,
+                        '{"context":{"state":"configured","version":"TEST-VERSION","action":"ack+customizers","info":{"hostname":"' + os.hostname() + '"}}}',null
+                    ]);
+                    test.mockHelpers.checkMockFiles(
+                        [[phoneHome.contextFile,'success'],[config.settings.aws_keys_file,'default']],
+                        [[phoneHome.contextFile,{state: 'configured'}]]
+                    );
+                    test.mockAwsSdk.checkMockState([
+                        ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
+                        ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
+                    ]);
 
-                (!!phoneHome.checkTimer).should.be.ok;
-                phoneHome.clearCheckTimer();
-                done();
+                    (!!phoneHome.checkTimer).should.be.ok;
+                    phoneHome.clearCheckTimer();
+                });
             };
         });
     });

@@ -62,10 +62,10 @@ describe('PolicyUpload',function() {
             var context     = {};
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),onResolve,onReject);
-            context.should.eql({action: 'error',error: 'GLOB error: **/*'});
+            context.should.eql({action: 'error',error: 'GLOB error: **/*',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
 
             policy.apply(context,config.copySettings(),onResolve,onReject);
-            context.should.eql({action: 'error+error',error: 'GLOB error: **/*'});
+            context.should.eql({action: 'error+error',error: 'GLOB error: **/*',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
 
             resolveSeen.should.eql(false);
             rejectSeen.should.eql(['GLOB error: **/*','GLOB error: **/*']);
@@ -79,7 +79,7 @@ describe('PolicyUpload',function() {
             var context     = {};
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),function(){
-                context.should.eql({});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
                 done();
             },onReject);
         });
@@ -91,7 +91,7 @@ describe('PolicyUpload',function() {
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),function(){
                 test.mockLogger.checkMockLogEntries(["ERROR - SKIP ERROR: Error: ENOENT: no such file or directory, stat 'unknown.file'"]);
-                context.should.eql({});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
                 done();
             },onReject);
         });
@@ -102,7 +102,7 @@ describe('PolicyUpload',function() {
             var context     = {};
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),function(){
-                context.should.eql({});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
                 done();
             },onReject);
         });
