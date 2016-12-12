@@ -327,8 +327,8 @@ MockSocket.prototype.setTimeout = function(period,callback){
     this.topics['timeout:' + period] = callback;
 };
 
-MockSocket.prototype.close = function(){
-    this.recordCallback('close');
+MockSocket.prototype.destroy = function(){
+    this.recordCallback('destroy');
 };
 
 MockSocket.prototype.connect = function(port,host,callback){

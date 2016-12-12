@@ -156,6 +156,14 @@ describe('PolicySocket',function() {
             policy.socket.topics['setTimeout:15000']();
             policy.stats.should.eql({added: 0,skipped: 0,ignored: 0,sent: 0,errors: 1,status: 'error: timeout'});
             test.mockLogger.checkMockLogEntries(['ERROR - socket error: timeout']);
+            test.mockNET.checkSockets([[
+                'on:data',
+                'on:close',
+                'on:error',
+                'setTimeout:15000',
+                'connect:test-host:1234',
+                'destroy'
+            ]]);
             test.mockNET.resetMock();
         });
 
