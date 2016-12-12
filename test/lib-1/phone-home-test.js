@@ -15,7 +15,7 @@ describe('PhoneHome',function() {
 
     beforeEach(function () {
         var basicHandlerPath = process.cwd() + '/lib/host-basic';
-        var qiotHandlerPath = process.cwd() + '/lib/host-qiot';
+        var qiotHandlerPath = process.cwd() + '/lib/host-qiot-http';
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
         test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);

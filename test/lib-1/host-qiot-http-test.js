@@ -1,8 +1,8 @@
 var test = require('../test');
 
-var QiotHost = require(process.cwd() + '/lib/host-qiot');
+var QiotHttpHost = require(process.cwd() + '/lib/host-qiot-http');
 
-describe('PhoneHome',function() {
+describe('QiotHttpHost',function() {
 
     var config;
 
@@ -110,7 +110,7 @@ describe('PhoneHome',function() {
                 ]
             };};
 
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
             host.findIdentity().should.eql([
                 { type: 'MAC', value: 'a0:99:9b:05:da:a3' },
                 { type: 'MAC', value: 'f6:a5:52:2f:a4:4e' },
@@ -121,7 +121,7 @@ describe('PhoneHome',function() {
 
     describe('contact - no account token',function(){
         it('should fail without an account token',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             host.contact({}).then(function(result) { done('unexpected success'); },function(error){
                 error.should.eql('no account token');
@@ -141,13 +141,13 @@ describe('PhoneHome',function() {
         });
 
         it('should report that registration is required',function(){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             host.registrationRequired().should.be.ok;
         });
 
         it('should perform a registration if no qiot_account_token exists in the config',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
@@ -182,7 +182,7 @@ describe('PhoneHome',function() {
         });
 
         it('should report an error if no registration found',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
@@ -215,13 +215,13 @@ describe('PhoneHome',function() {
         });
 
         it('should report that registration is NOT required',function(){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             host.registrationRequired().should.be.not.ok;
         });
 
         it('should send a status message when a  qiot_account_token exists in the config',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             test.mockHTTPS.statusCode = 204;
             host.contact({}).then(function(context){
@@ -247,7 +247,7 @@ describe('PhoneHome',function() {
         });
 
         it('should catch an error handling data',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
@@ -266,7 +266,7 @@ describe('PhoneHome',function() {
         });
 
         it('should catch invalid json',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
@@ -289,7 +289,7 @@ describe('PhoneHome',function() {
         });
 
         it('should receive valid json',function(done){
-            var host = new QiotHost();
+            var host = new QiotHttpHost();
 
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
