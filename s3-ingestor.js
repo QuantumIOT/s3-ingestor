@@ -14,7 +14,7 @@ var phoneHome = new PhoneHome(emitter,VERSION);
 
 emitter.on('startup',function(){
     logger.message('-----------------------------------------------------------');
-    emitter.emit('phonehome',phoneHome.host.registrationRequired() ? 'register' : 'startup');
+    emitter.emit('phonehome',phoneHome.host.registrationRequired(phoneHome.readContext()) ? 'register' : 'startup');
 
     var apiServer = http.createServer(function(req,res) {
         var context = phoneHome.readContext();
@@ -40,5 +40,9 @@ emitter.on('phonehome',_.bind(phoneHome.handlePhoneHomeEvent,phoneHome));
 
 _.defer(function(){ emitter.emit('startup'); }); // start after the 'requirer' has finished what he is doing...
 
-
-
+module.exports = {
+    VERSION: VERSION,
+    config: config,
+    emitter: emitter,
+    phoneHome: phoneHome
+};

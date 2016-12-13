@@ -8,10 +8,13 @@ describe('helpers',function(){
 
     beforeEach(function () {
         var basicHandlerPath = process.cwd() + '/lib/host-basic';
-        var qiotHandlerPath = process.cwd() + '/lib/host-qiot';
+        var mqttHandlerPath = process.cwd() + '/lib/host-qiot-mqtt';
+        var httpHandlerPath = process.cwd() + '/lib/host-qiot-http';
         test.mockery.enable();
-        test.mockery.registerAllowables(['https','lodash','./config','./helpers',helperPath,basicHandlerPath,qiotHandlerPath]);
+        test.mockery.registerAllowables(['https','lodash','./config','./helpers','./host-qiot-http',helperPath,basicHandlerPath,mqttHandlerPath,httpHandlerPath]);
         test.mockery.warnOnReplace(false);
+        test.mockery.registerMock('mqtt',test.mockMQTT);
+        test.mockMQTT.resetMock();
         test.mockery.registerMock('./logger',test.mockLogger);
         test.mockLogger.resetMock();
 
@@ -44,14 +47,14 @@ describe('helpers',function(){
             helpers.lastHostName.should.eql('host-basic');
         });
 
-        it('should return a QiotHost if settings has a qiot_account_token',function(){
+        it('should return a QiotMqttHost if settings has a qiot_account_token',function(){
             helpers.bestHost({qiot_account_token: 'ACCOUNT-TOKEN'}).should.be.ok;
-            helpers.lastHostName.should.eql('host-qiot');
+            helpers.lastHostName.should.eql('host-qiot-mqtt');
         });
 
-        it('should return a QiotHost if explicitly in the settings',function(){
-            helpers.bestHost({host_handler: 'host-qiot'}).should.be.ok;
-            helpers.lastHostName.should.eql('host-qiot');
+        it('should return a QiotHttpHost if explicitly in the settings',function(){
+            helpers.bestHost({host_handler: 'host-qiot-http'}).should.be.ok;
+            helpers.lastHostName.should.eql('host-qiot-http');
         });
     });
 

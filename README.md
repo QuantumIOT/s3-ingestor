@@ -1,4 +1,6 @@
-# S3-INGESTOR [![Build Status](https://travis-ci.org/QuantumIOT/s3-ingestor.svg?branch=master)](https://travis-ci.org/QuantumIOT/s3-ingestor)
+# S3-INGESTOR
+[![Build Status](https://travis-ci.org/QuantumIOT/s3-ingestor.svg?branch=master)](https://travis-ci.org/QuantumIOT/s3-ingestor)
+[![Coverage Status](https://coveralls.io/repos/github/QuantumIOT/s3-ingestor/badge.svg?branch=master)](https://coveralls.io/github/QuantumIOT/s3-ingestor?branch=master)
 
 This is a simple utility in NodeJS for pushing files from a local file system to S3 on an ongoing basis.
 

@@ -327,6 +327,10 @@ MockSocket.prototype.setTimeout = function(period,callback){
     this.topics['timeout:' + period] = callback;
 };
 
+MockSocket.prototype.destroy = function(){
+    this.recordCallback('destroy');
+};
+
 MockSocket.prototype.connect = function(port,host,callback){
     this.recordCallback('connect:' + host + ':' + port,callback);
 };
@@ -515,3 +519,49 @@ MockRedis.createClient = function () {
 };
 
 module.exports.mockRedis = MockRedis;
+
+// Mock MQTT
+
+
+var MockMQTT = {};
+
+MockMQTT.resetMock = function() {
+    MockMQTT.connectError = null;
+    MockMQTT.calls = [];
+    MockMQTT.clients = [];
+};
+
+MockMQTT.checkCalls = function(calls){
+    MockMQTT.calls.should.eql(calls || []);
+    MockMQTT.calls = [];
+};
+
+function MockClient(){
+    this.topics = {};
+    this.calls = [];
+    MockMQTT.calls.push(this.calls);
+    MockMQTT.clients.push(this);
+}
+
+MockClient.prototype.recordCallback = function(topic,call,callback){
+    this.calls.push(call);
+    this.topics[topic] = callback;
+};
+
+MockClient.prototype.on = function(topic,callback) {
+    this.recordCallback('on:' + topic,'on:' + topic,callback);
+};
+
+MockMQTT.connect = function(url,options,callback){
+    if (MockMQTT.connectError) throw MockMQTT.connectError;
+
+    var client = new MockClient();
+    client.recordCallback('new','new:' + url + ':' + JSON.stringify(options),null);
+    return client;
+};
+
+MockClient.prototype.publish = function(topic,message,options,callback){
+    this.recordCallback('publish','publish:' + topic + ':' + message + ':' + JSON.stringify(options),callback);
+};
+
+module.exports.mockMQTT = MockMQTT;
