@@ -94,6 +94,7 @@ describe('QiotMqttHost',function() {
                     ]);
 
                     context.should.eql({state: 'registered',config: {qiot_account_token: 'ACCOUNT-TOKEN-2'},qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'});
+                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
                 });
             },done);
         });
@@ -115,7 +116,8 @@ describe('QiotMqttHost',function() {
                         'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host output: {}'
                     ]);
-                    error.should.eql('no registration received')
+                    error.should.eql('no registration received');
+                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
                 });
             });
         });
@@ -145,6 +147,7 @@ describe('QiotMqttHost',function() {
                         'DEBUG - start MQTT client'
                     ]);
                     error.should.eql('invalid credentials');
+                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
                 });
             });
         });
@@ -162,6 +165,7 @@ describe('QiotMqttHost',function() {
                         'ERROR - connection error: test-error'
                     ]);
                     error.should.eql('test-error');
+                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
                 });
             });
         });
@@ -179,15 +183,16 @@ describe('QiotMqttHost',function() {
                         'on:offline',
                         'on:connect',
                         'on:message',
-                        'publish:/1/l/THING-TOKEN:{"messages":[]}:{"qos":0,"retain":true}'
+                        'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
                     ]]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - start MQTT client',
                         'DEBUG - connected: {"ack":true}',
-                        'DEBUG - publish: {"messages":[]}',
+                        'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                         'ERROR - publish error: test-error'
                     ]);
                     error.should.eql('test-error');
+                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
                 });
             });
 
@@ -232,15 +237,15 @@ describe('QiotMqttHost',function() {
                             'on:offline',
                             'on:connect',
                             'on:message',
-                            'publish:/1/l/THING-TOKEN:{"messages":[]}:{"qos":0,"retain":true}',
-                            'publish:/1/l/THING-TOKEN:{"messages":[]}:{"qos":0,"retain":true}'
+                            'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}',
+                            'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
                         ]]);
                         test.mockLogger.checkMockLogEntries([
                             'DEBUG - start MQTT client',
                             'DEBUG - connected: {"ack":true}',
-                            'DEBUG - publish: {"messages":[]}',
+                            'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                             'DEBUG - publish successful',
-                            'DEBUG - publish: {"messages":[]}',
+                            'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                             'DEBUG - publish successful',
                             'ERROR - test-error',
                             'DEBUG - reconnected',
@@ -249,6 +254,7 @@ describe('QiotMqttHost',function() {
                             'DEBUG - message[TEST-TOPIC] = null'
                         ]);
                         context.should.eql({qiot_thing_token: 'THING-TOKEN'});
+                        host.httpHost.messageQueue.should.eql([]);
                     });
                 },done);
 
