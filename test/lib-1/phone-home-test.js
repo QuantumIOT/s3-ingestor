@@ -15,14 +15,16 @@ describe('PhoneHome',function() {
 
     beforeEach(function () {
         var basicHandlerPath = process.cwd() + '/lib/host-basic';
-        var qiotHandlerPath = process.cwd() + '/lib/host-qiot-http';
+        var qiotHandlerPath = process.cwd() + '/lib/host-qiot-mqtt';
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);
+        test.mockery.registerAllowables(['lodash','./aws','./config','./logger','./host-qiot-http',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
         test.mockHTTPS.resetMock();
+        test.mockery.registerMock('mqtt',test.mockMQTT);
+        test.mockMQTT.resetMock();
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
         test.mockery.registerMock('./helpers', test.mockHelpers);
