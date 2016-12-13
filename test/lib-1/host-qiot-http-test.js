@@ -4,7 +4,7 @@ var QiotHttpHost = require(process.cwd() + '/lib/host-qiot-http');
 
 describe('QiotHttpHost',function() {
 
-    var config;
+    var config,context;
 
     beforeEach(function () {
         test.mockery.enable();
@@ -132,6 +132,7 @@ describe('QiotHttpHost',function() {
 
     describe('contact - register', function () {
         beforeEach(function(){
+            context = {};
             config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
             test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: '00:00:00:00:00:00'}]}; }
         });
@@ -143,7 +144,7 @@ describe('QiotHttpHost',function() {
         it('should report that registration is required',function(){
             var host = new QiotHttpHost();
 
-            host.registrationRequired().should.be.ok;
+            host.registrationRequired(context).should.be.ok;
         });
 
         it('should perform a registration if no qiot_account_token exists in the config',function(done){
@@ -156,7 +157,7 @@ describe('QiotHttpHost',function() {
                 });
             };
 
-            host.contact({}).then(function(context){
+            host.contact(context).then(function(context){
                 test.asyncDone(done,function(){
                     test.mockHTTPS.lastOptions.should.eql({
                         host: 'api.qiot.io',
@@ -176,7 +177,7 @@ describe('QiotHttpHost',function() {
                         'DEBUG - registration received'
                     ]);
 
-                    context.should.eql({state: 'registered',config: {qiot_account_token: 'ACCOUNT-TOKEN',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'}});
+                    context.should.eql({state: 'registered',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'});
                 });
             },done);
         });
@@ -191,14 +192,15 @@ describe('QiotHttpHost',function() {
                 });
             };
 
-            host.contact({}).then(function(context){ done('error expected -- success found'); },function(error){
+            host.contact(context).then(function(context){ done('error expected -- success found'); },function(error){
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host output: {}'
                     ]);
-                    error.should.eql('no registration received')
+                    error.should.eql('no registration received');
+                    context.should.eql({});
                 });
             });
         });
@@ -206,25 +208,21 @@ describe('QiotHttpHost',function() {
 
     describe('contact - message', function () {
         beforeEach(function(){
+            context                            = {qiot_thing_token: 'THING-TOKEN'};
             config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
-            config.settings.qiot_thing_token = 'THING-TOKEN';
-        });
-
-        afterEach(function(){
-            delete config.settings.qiot_thing_token;
         });
 
         it('should report that registration is NOT required',function(){
             var host = new QiotHttpHost();
 
-            host.registrationRequired().should.be.not.ok;
+            host.registrationRequired(context).should.be.not.ok;
         });
 
-        it('should send a status message when a  qiot_account_token exists in the config',function(done){
+        it('should send a status message when a qiot_account_token exists in the config',function(done){
             var host = new QiotHttpHost();
 
             test.mockHTTPS.statusCode = 204;
-            host.contact({}).then(function(context){
+            host.contact(context).then(function(context){
                 test.asyncDone(done,function(){
                     test.mockHTTPS.lastOptions.should.eql({
                         host: 'api.qiot.io',
@@ -242,6 +240,7 @@ describe('QiotHttpHost',function() {
                         'DEBUG - host input: {"messages":[]}',
                         'DEBUG - host response 204'
                     ]);
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN'})
                 });
             },done);
         });
@@ -256,11 +255,12 @@ describe('QiotHttpHost',function() {
                 });
             };
 
-            host.contact({}).then(function(context){ done('error expected -- success found'); },function(error){
+            host.contact(context).then(function(context){ done('error expected -- success found'); },function(error){
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"messages":[]}',null]);
                     test.mockLogger.checkMockLogEntries(['DEBUG - host input: {"messages":[]}']);
-                    error.toString().should.eql("TypeError: Cannot read property 'toString' of null")
+                    error.toString().should.eql("TypeError: Cannot read property 'toString' of null");
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN'})
                 });
             });
         });
@@ -275,7 +275,7 @@ describe('QiotHttpHost',function() {
                 });
             };
 
-            host.contact({}).then(function(context){ done('error expected -- success found'); },function(error){
+            host.contact(context).then(function(context){ done('error expected -- success found'); },function(error){
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"messages":[]}',null]);
                     test.mockLogger.checkMockLogEntries([
@@ -283,7 +283,8 @@ describe('QiotHttpHost',function() {
                         'DEBUG - host output: {',
                         'ERROR - json error: SyntaxError: Unexpected end of input'
                     ]);
-                    error.toString().should.eql('no json received')
+                    error.toString().should.eql('no json received');
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN'});
                 });
             });
         });
@@ -298,13 +299,14 @@ describe('QiotHttpHost',function() {
                 });
             };
 
-            host.contact({}).then(function(context){
+            host.contact(context).then(function(context){
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"messages":[]}',null]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - host input: {"messages":[]}',
                         'DEBUG - host output: {}'
                     ]);
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN'});
                 });
             },done);
         });

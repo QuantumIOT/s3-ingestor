@@ -14,7 +14,7 @@ var phoneHome = new PhoneHome(emitter,VERSION);
 
 emitter.on('startup',function(){
     logger.message('-----------------------------------------------------------');
-    emitter.emit('phonehome',phoneHome.host.registrationRequired() ? 'register' : 'startup');
+    emitter.emit('phonehome',phoneHome.host.registrationRequired(phoneHome.readContext()) ? 'register' : 'startup');
 
     var apiServer = http.createServer(function(req,res) {
         var context = phoneHome.readContext();
