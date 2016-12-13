@@ -15,14 +15,16 @@ describe('PhoneHome',function() {
 
     beforeEach(function () {
         var basicHandlerPath = process.cwd() + '/lib/host-basic';
-        var qiotHandlerPath = process.cwd() + '/lib/host-qiot';
+        var qiotHandlerPath = process.cwd() + '/lib/host-qiot-mqtt';
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['./aws','./config','./logger','lodash',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);
+        test.mockery.registerAllowables(['lodash','./aws','./config','./logger','./host-qiot-http',test.configGuard.requirePath,basicHandlerPath,qiotHandlerPath]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
         test.mockHTTPS.resetMock();
+        test.mockery.registerMock('mqtt',test.mockMQTT);
+        test.mockMQTT.resetMock();
         test.mockery.registerMock('./logger', test.mockLogger);
         test.mockLogger.resetMock();
         test.mockery.registerMock('./helpers', test.mockHelpers);
@@ -365,8 +367,6 @@ describe('PhoneHome',function() {
 
         afterEach(function(){
             delete config.settings.qiot_account_token;
-            delete config.settings.qiot_collection_token;
-            delete config.settings.qiot_thing_token;
         });
 
         it('should do nothing on startup if registration is required and not received',function(done){
@@ -416,14 +416,12 @@ describe('PhoneHome',function() {
                         'phone home: register',
                         'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
-                        'DEBUG - registration received',
-                        'config updated',
-                        'DEBUG - {"qiot_account_token":"ACCOUNT-TOKEN","qiot_collection_token":"COLLECTION-TOKEN","qiot_thing_token":"THING-TOKEN"}'
+                        'DEBUG - registration received'
                     ]);
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockHelpers.checkMockFiles(
-                        [[phoneHome.contextFile,'default'],[config.config_file,'default'],[config.config_file,'success']],
-                        [[phoneHome.contextFile,{state: 'registered'}],[config.config_file,{qiot_account_token: 'ACCOUNT-TOKEN',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'}]]
+                        [[phoneHome.contextFile,'default']],
+                        [[phoneHome.contextFile,{state: 'registered',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'}]]
                     );
 
                     action.should.eql('startup');
