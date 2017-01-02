@@ -158,24 +158,26 @@ describe('PhoneHome',function() {
             test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback('listObjects-error'); };
 
             test.mockHTTPS.deferAfterEnd = function(){
-                (!!test.mockHTTPS.events.data).should.be.ok;
-                test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+                test.asyncMidpoint(done,function(){
+                    (!!test.mockHTTPS.events.data).should.be.ok;
+                    test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+                })
             };
 
             function checkResults(){
-                test.mockLogger.checkMockLogEntries([
-                    'ERROR - download customizers error - listObjects-error',
-                    'DEBUG - host input: {"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',
-                    'DEBUG - host output: {"state":"test"}'
-                ]);
-                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',null]);
-                test.mockHelpers.checkMockFiles([[ config.home_full_path + '/s3-ingestor-keys.json','default']]);
-                test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}]]);
-
-                done();
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'ERROR - download customizers error - listObjects-error',
+                        'DEBUG - host input: {"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',
+                        'DEBUG - host output: {"state":"test"}'
+                    ]);
+                    test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"test+error","error":"listObjects-error"}}',null]);
+                    test.mockHelpers.checkMockFiles([[ config.home_full_path + '/s3-ingestor-keys.json','default']]);
+                    test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}]]);
+                });
             }
 
-            phoneHome.downloadCustomizers(context,checkResults,function(){ true.should.not.be.ok; done(); });
+            phoneHome.downloadCustomizers(context,checkResults,done);
         });
 
         it('should handle an error on s3.getObject', function (done) {
@@ -188,29 +190,31 @@ describe('PhoneHome',function() {
             test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback('download-error'); };
 
             test.mockHTTPS.deferAfterEnd = function(){
-                (!!test.mockHTTPS.events.data).should.be.ok;
-                test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+                test.asyncMidpoint(done,function(){
+                    (!!test.mockHTTPS.events.data).should.be.ok;
+                    test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+                })
             };
 
             function checkResults(){
-                test.mockLogger.checkMockLogEntries([
-                    'DEBUG - customizer count: 1',
-                    'DEBUG - customizer: test',
-                    'ERROR - download customizers error - download-error',
-                    'DEBUG - host input: {"context":{"state":"test","action":"error","error":"download-error"}}',
-                    'DEBUG - host output: {"state":"test"}'
-                ]);
-                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"download-error"}}',null]);
-                test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']]);
-                test.mockAwsSdk.checkMockState([
-                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
-                    ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
-                ]);
-
-                done();
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - customizer count: 1',
+                        'DEBUG - customizer: test',
+                        'ERROR - download customizers error - download-error',
+                        'DEBUG - host input: {"context":{"state":"test","action":"error","error":"download-error"}}',
+                        'DEBUG - host output: {"state":"test"}'
+                    ]);
+                    test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"download-error"}}',null]);
+                    test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']]);
+                    test.mockAwsSdk.checkMockState([
+                        ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
+                        ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
+                    ]);
+                });
             }
 
-            phoneHome.downloadCustomizers(context,checkResults,function(){ true.should.not.be.ok; done(); });
+            phoneHome.downloadCustomizers(context,checkResults,done);
         });
 
         it('should handle an error on writeFile', function (done) {
@@ -234,29 +238,31 @@ describe('PhoneHome',function() {
             };
 
             test.mockHTTPS.deferAfterEnd = function(){
-                (!!test.mockHTTPS.events.data).should.be.ok;
-                test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+                test.asyncMidpoint(done,function(){
+                    (!!test.mockHTTPS.events.data).should.be.ok;
+                    test.mockHTTPS.events.data(JSON.stringify({state: 'test'}));
+                })
             };
 
             function checkResults(){
-                test.mockLogger.checkMockLogEntries([
-                    'DEBUG - customizer count: 1',
-                    'DEBUG - customizer: test',
-                    'ERROR - download customizers error - writeFile-error',
-                    'DEBUG - host input: {"context":{"state":"test","action":"error","error":"writeFile-error"}}',
-                    'DEBUG - host output: {"state":"test"}'
-                ]);
-                test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"writeFile-error"}}',null]);
-                test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']]);
-                test.mockAwsSdk.checkMockState([
-                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
-                    ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
-                ]);
-
-                done();
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - customizer count: 1',
+                        'DEBUG - customizer: test',
+                        'ERROR - download customizers error - writeFile-error',
+                        'DEBUG - host input: {"context":{"state":"test","action":"error","error":"writeFile-error"}}',
+                        'DEBUG - host output: {"state":"test"}'
+                    ]);
+                    test.mockHTTPS.checkWritten(['{"context":{"state":"test","action":"error","error":"writeFile-error"}}',null]);
+                    test.mockHelpers.checkMockFiles([[config.home_full_path + '/s3-ingestor-keys.json','default']]);
+                    test.mockAwsSdk.checkMockState([
+                        ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'code/s3-ingestor/customizers/'}],
+                        ['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]
+                    ]);
+                });
             }
 
-            phoneHome.downloadCustomizers(context,checkResults,function(){ true.should.not.be.ok; done(); });
+            phoneHome.downloadCustomizers(context,checkResults,done);
         });
     });
 
@@ -307,7 +313,7 @@ describe('PhoneHome',function() {
                 ]);
 
                 done();
-            },function(){ true.should.not.be.ok; done(); });
+            },done);
         });
     });
 
@@ -332,7 +338,7 @@ describe('PhoneHome',function() {
                 ]);
 
                 done();
-            },function(){ true.should.not.be.ok; done(); });
+            },done);
         });
 
         it('should report an error on failure',function(done){
@@ -355,7 +361,7 @@ describe('PhoneHome',function() {
                 ]);
 
                 done();
-            },function(){ true.should.not.be.ok; done(); });
+            },done);
         });
     });
 

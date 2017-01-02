@@ -58,6 +58,7 @@ MockHelpers.resetMock = function(){
     MockHelpers.filesSaved = [];
     MockHelpers.filesToRequire = {};
     MockHelpers.filesRequired = [];
+    MockHelpers.processENV = _.clone(helpers.processENV);
     helpers.resetLogger();
 };
 
