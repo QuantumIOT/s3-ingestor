@@ -37,6 +37,15 @@ describe('QiotHttpHost',function() {
     });
 
     describe('findIdentity',function(){
+        it('should use the environment variable QIOT_IDENTITY override MAC addresses as the identity',function(){
+            test.mockHelpers.processENV.QIOT_IDENTITY = 'TEST';
+
+            var host = new QiotHttpHost();
+            host.findIdentity().should.eql([
+                { type: 'SN', value: 'TEST' }
+            ]);
+        });
+
         it('should find the external mac addresses in the os as identity values',function(){
             test.mockHelpers.networkInterfaces = function (){ return {
                 lo0: [
