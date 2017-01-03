@@ -273,8 +273,8 @@ describe('QiotHttpHost',function() {
                     test.mockHTTPS.checkWritten(['{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',null]);
                     test.mockLogger.checkMockLogEntries(['DEBUG - host input: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}']);
                     error.toString().should.eql("TypeError: Cannot read property 'toString' of null");
-                    context.should.eql({qiot_thing_token: 'THING-TOKEN'})
-                    host.messageQueue.should.eql([]);
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN'});
+                    host.messageQueue.should.eql([{action:"unspecified",version:"unspecified",info:{},stats:{}}]);
                 });
             });
         });
@@ -299,7 +299,7 @@ describe('QiotHttpHost',function() {
                     ]);
                     error.toString().should.eql('no json received');
                     context.should.eql({qiot_thing_token: 'THING-TOKEN'});
-                    host.messageQueue.should.eql([]);
+                    host.messageQueue.should.eql([{action:"unspecified",version:"unspecified",info:{},stats:{}}]);
                 });
             });
         });
