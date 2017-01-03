@@ -177,11 +177,11 @@ describe('QiotHttpHost',function() {
                     });
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host status: Forbidden'
                     ]);
 
-                    error.should.eql('Forbidden');
+                    error.should.eql('registration rejected: Forbidden');
                     host.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
                 });
             },done);
@@ -214,7 +214,7 @@ describe('QiotHttpHost',function() {
                     });
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
                         'DEBUG - host status: OK',
                         'DEBUG - registration received'
@@ -242,7 +242,7 @@ describe('QiotHttpHost',function() {
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host output: {}',
                         'DEBUG - host status: OK'
                     ]);
@@ -266,7 +266,7 @@ describe('QiotHttpHost',function() {
             host.registrationRequired(context).should.be.not.ok;
         });
 
-        it('should handle unsuccessful responses from the server',function(done){
+        it('should handle unsuccessful responses from the server for message delivery',function(done){
             var host = new QiotHttpHost();
 
             test.mockHTTPS.statusCode = 403;
@@ -286,12 +286,68 @@ describe('QiotHttpHost',function() {
                     });
                     test.mockHTTPS.checkWritten(['{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - host POST /1/l/THING-TOKEN: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                         'DEBUG - host status: Forbidden'
                     ]);
 
-                    error.should.eql('Forbidden');
+                    error.should.eql('delivery failure: Forbidden');
                     host.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
+                });
+            },done);
+        });
+
+        it('should handle unsuccessful responses from the server for mailbox failure',function(done){
+            var host = new QiotHttpHost();
+
+            test.mockHTTPS.statusCode = 204;
+
+            test.mockHTTPS.deferAfterEnd = function(){
+                test.asyncMidpoint(done,function(){
+                    (!!test.mockHTTPS.events.end).should.be.ok;
+                    test.mockHTTPS.events.end();
+
+                    test.mockHTTPS.statusCode = 403;
+                    test.mockHTTPS.deferAfterEnd = null;
+                });
+            };
+
+            host.contact(context).then(function() { done('unexpected success'); },function(error){
+                test.asyncDone(done,function(){
+                    test.mockHTTPS.requested.should.eql([
+                        {
+                            host: 'api.qiot.io',
+                            port: 443,
+                            path: '/1/l/THING-TOKEN',
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'QIOT ACCOUNT-TOKEN',
+                                'Content-Length': 84
+                            }
+                        },
+                        {
+                            host: 'api.qiot.io',
+                            port: 443,
+                            path: '/1/m/THING-TOKEN',
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'QIOT ACCOUNT-TOKEN'
+                            }
+                        }
+                    ]);
+                    test.mockHTTPS.checkWritten([
+                        '{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',null,
+                        null
+                    ]);
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - host POST /1/l/THING-TOKEN: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - host status: No Content',
+                        'DEBUG - host GET /1/m/THING-TOKEN: null',
+                        'DEBUG - host status: Forbidden'
+                    ]);
+                    error.should.eql('mailbox failure: Forbidden');
+                    host.messageQueue.should.eql([]);
                 });
             },done);
         });
@@ -331,9 +387,9 @@ describe('QiotHttpHost',function() {
                         null
                     ]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - host POST /1/l/THING-TOKEN: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                         'DEBUG - host status: No Content',
-                        'DEBUG - host GET: null',
+                        'DEBUG - host GET /1/m/THING-TOKEN: null',
                         'DEBUG - host status: No Content'
                     ]);
                     context.should.eql({qiot_thing_token: 'THING-TOKEN'});
@@ -358,7 +414,7 @@ describe('QiotHttpHost',function() {
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - host POST /1/l/THING-TOKEN: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                         'DEBUG - host status: OK'
                     ]);
                     error.toString().should.eql("TypeError: Cannot read property 'toString' of null");
@@ -385,7 +441,7 @@ describe('QiotHttpHost',function() {
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - host POST /1/l/THING-TOKEN: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                         'DEBUG - host output: {',
                         'ERROR - json error: SyntaxError: Unexpected end of input',
                         'DEBUG - host status: OK'
@@ -416,10 +472,10 @@ describe('QiotHttpHost',function() {
                         null
                     ]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - host POST /1/l/THING-TOKEN: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                         'DEBUG - host output: {}',
                         'DEBUG - host status: OK',
-                        'DEBUG - host GET: null',
+                        'DEBUG - host GET /1/m/THING-TOKEN: null',
                         'DEBUG - host output: {}',
                         'DEBUG - host status: OK'
                     ]);
