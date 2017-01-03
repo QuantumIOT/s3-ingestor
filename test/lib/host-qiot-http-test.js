@@ -48,81 +48,74 @@ describe('QiotHttpHost',function() {
 
         it('should find the external mac addresses in the os as identity values',function(){
             test.mockHelpers.networkInterfaces = function (){ return {
-                lo0: [
-                    {
-                        address: '::1',
+                lo0:
+                    [ { address: '::1',
                         netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
                         family: 'IPv6',
                         mac: '00:00:00:00:00:00',
                         scopeid: 0,
-                        internal: true
-                    },
-                    {
-                        address: '127.0.0.1',
-                        netmask: '255.0.0.0',
-                        family: 'IPv4',
-                        mac: '00:00:00:00:00:00',
-                        internal: true
-                    },
-                    {
-                        address: 'fe80::1',
-                        netmask: 'ffff:ffff:ffff:ffff::',
-                        family: 'IPv6',
-                        mac: '00:00:00:00:00:00',
-                        scopeid: 1,
-                        internal: true
-                    }
-                 ],
-                en0: [
-                    {
-                        address: 'fe80::a299:9bff:fe05:daa3',
+                        internal: true },
+                        { address: '127.0.0.1',
+                            netmask: '255.0.0.0',
+                            family: 'IPv4',
+                            mac: '00:00:00:00:00:00',
+                            internal: true },
+                        { address: 'fe80::1',
+                            netmask: 'ffff:ffff:ffff:ffff::',
+                            family: 'IPv6',
+                            mac: '00:00:00:00:00:00',
+                            scopeid: 1,
+                            internal: true } ],
+                en0:
+                    [ { address: 'fe80::a299:9bff:fe05:daa3',
                         netmask: 'ffff:ffff:ffff:ffff::',
                         family: 'IPv6',
                         mac: 'a0:99:9b:05:da:a3',
+                        scopeid: 5,
+                        internal: false },
+                        { address: '192.168.1.7',
+                            netmask: '255.255.255.0',
+                            family: 'IPv4',
+                            mac: 'a0:99:9b:05:da:a3',
+                            internal: false } ],
+                awdl0:
+                    [ { address: 'fe80::34ec:49ff:fe47:fbd8',
+                        netmask: 'ffff:ffff:ffff:ffff::',
+                        family: 'IPv6',
+                        mac: '36:ec:49:47:fb:d8',
+                        scopeid: 10,
+                        internal: false } ],
+                utun0:
+                    [ { address: 'fe80::fc12:2690:40e0:317b',
+                        netmask: 'ffff:ffff:ffff:ffff::',
+                        family: 'IPv6',
+                        mac: '00:00:00:00:00:00',
+                        scopeid: 11,
+                        internal: false } ],
+                utun1:
+                    [ { address: 'fe80::e48b:9afa:7f45:4727',
+                        netmask: 'ffff:ffff:ffff:ffff::',
+                        family: 'IPv6',
+                        mac: '00:00:00:00:00:00',
+                        scopeid: 12,
+                        internal: false } ],
+                en4:
+                    [ { address: 'fe80::426c:8fff:fe46:79fb',
+                        netmask: 'ffff:ffff:ffff:ffff::',
+                        family: 'IPv6',
+                        mac: '40:6c:8f:46:79:fb',
                         scopeid: 4,
-                        internal: false
-                    },
-                    {
-                        address: '192.168.1.7',
-                        netmask: '255.255.255.0',
-                        family: 'IPv4',
-                        mac: 'a0:99:9b:05:da:a3',
-                        internal: false
-                    }
-                ],
-                awdl0: [
-                    {
-                        address: 'fe80::f4a5:52ff:fe2f:a44e',
-                        netmask: 'ffff:ffff:ffff:ffff::',
-                        family: 'IPv6',
-                        mac: 'f6:a5:52:2f:a4:4e',
-                        scopeid: 8,
-                        internal: false
-                    }
-                ],
-                en4: [
-                    {
-                        address: 'fe80::426c:8fff:fe46:79fb',
-                        netmask: 'ffff:ffff:ffff:ffff::',
-                        family: 'IPv6',
-                        mac: '40:6c:8f:46:79:fb',
-                        scopeid: 9,
-                        internal: false
-                    },
-                    {
-                        address: '192.168.1.12',
-                        netmask: '255.255.255.0',
-                        family: 'IPv4',
-                        mac: '40:6c:8f:46:79:fb',
-                        internal: false
-                    }
-                ]
-            };};
+                        internal: false },
+                        { address: '192.168.1.13',
+                            netmask: '255.255.255.0',
+                            family: 'IPv4',
+                            mac: '40:6c:8f:46:79:fb',
+                            internal: false } ] };};
 
             var host = new QiotHttpHost();
             host.findIdentity().should.eql([
                 { type: 'MAC', value: 'a0:99:9b:05:da:a3' },
-                { type: 'MAC', value: 'f6:a5:52:2f:a4:4e' },
+                { type: 'MAC', value: '36:ec:49:47:fb:d8' },
                 { type: 'MAC', value: '40:6c:8f:46:79:fb' }
             ]);
         });
@@ -144,7 +137,7 @@ describe('QiotHttpHost',function() {
         beforeEach(function(){
             context = {};
             config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
-            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: '00:00:00:00:00:00'}]}; }
+            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: 'a0:b0:c0:d0:e0:f0'}]}; }
         });
 
         afterEach(function(){
@@ -175,9 +168,9 @@ describe('QiotHttpHost',function() {
                             'Content-Length': 89
                         }
                     });
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
                         'DEBUG - host status: Forbidden'
                     ]);
 
@@ -212,9 +205,9 @@ describe('QiotHttpHost',function() {
                             'Content-Length': 89
                         }
                     });
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
                         'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
                         'DEBUG - host status: OK',
                         'DEBUG - registration received'
@@ -240,9 +233,9 @@ describe('QiotHttpHost',function() {
 
             host.contact(context).then(function(context){ done('error expected -- success found'); },function(error){
                 test.asyncDone(done,function() {
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
                         'DEBUG - host output: {}',
                         'DEBUG - host status: OK'
                     ]);
