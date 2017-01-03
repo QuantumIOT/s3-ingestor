@@ -10,7 +10,7 @@ describe('QiotMqttHost',function() {
     beforeEach(function () {
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['lodash','./config','./logger','./host-qiot-http',test.configGuard.requirePath]);
+        test.mockery.registerAllowables(['lodash','http-status-codes','./config','./logger','./host-qiot-http',test.configGuard.requirePath]);
         test.mockery.registerMock('mqtt', test.mockMQTT);
         test.mockMQTT.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
@@ -70,6 +70,8 @@ describe('QiotMqttHost',function() {
                 test.asyncMidpoint(done,function(){
                     (!!test.mockHTTPS.events.data).should.be.ok;
                     test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN-2',collection_token: 'COLLECTION-TOKEN',token: 'THING-TOKEN'}}));
+                    (!!test.mockHTTPS.events.end).should.be.ok;
+                    test.mockHTTPS.events.end();
                 });
             };
 
@@ -88,8 +90,9 @@ describe('QiotMqttHost',function() {
                     });
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host POST: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
                         'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN-2","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
+                        'DEBUG - host status: OK',
                         'DEBUG - registration received'
                     ]);
 
@@ -106,6 +109,8 @@ describe('QiotMqttHost',function() {
                 test.asyncMidpoint(done,function(){
                     (!!test.mockHTTPS.events.data).should.be.ok;
                     test.mockHTTPS.events.data('{}');
+                    (!!test.mockHTTPS.events.end).should.be.ok;
+                    test.mockHTTPS.events.end();
                 });
             };
 
@@ -113,8 +118,9 @@ describe('QiotMqttHost',function() {
                 test.asyncDone(done,function() {
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
-                        'DEBUG - host output: {}'
+                        'DEBUG - host POST: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
+                        'DEBUG - host output: {}',
+                        'DEBUG - host status: OK'
                     ]);
                     error.should.eql('no registration received');
                     host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
