@@ -24,6 +24,7 @@
   "dependencies": {
     "aws-sdk": "^2.3.3",
     "glob": "^7.0.3",
+    "http-status-codes": "^1.0.6",
     "lodash": "^4.10.0",
     "redis": "^2.6.1",
     "then-redis": "^2.0.1"
