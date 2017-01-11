@@ -1,4 +1,5 @@
 var _ = require('lodash');
+var events = require('events');
 var test = require('../test');
 
 var QiotMqttHost = require(process.cwd() + '/lib/host-qiot-mqtt');
@@ -10,7 +11,7 @@ describe('QiotMqttHost',function() {
     beforeEach(function () {
         test.mockery.enable();
         test.mockery.warnOnReplace(false);
-        test.mockery.registerAllowables(['lodash','./config','./logger','./host-qiot-http',test.configGuard.requirePath]);
+        test.mockery.registerAllowables(['lodash','http-status-codes','./config','./logger','./host-qiot-http',test.configGuard.requirePath]);
         test.mockery.registerMock('mqtt', test.mockMQTT);
         test.mockMQTT.resetMock();
         test.mockery.registerMock('https', test.mockHTTPS);
@@ -54,7 +55,7 @@ describe('QiotMqttHost',function() {
         beforeEach(function(){
             context                            = {};
             config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
-            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: '00:00:00:00:00:00'}]}; }
+            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: 'a0:b0:c0:d0:e0:f0'}]}; }
         });
 
         it('should report that registration is required',function(){
@@ -69,7 +70,9 @@ describe('QiotMqttHost',function() {
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
                     (!!test.mockHTTPS.events.data).should.be.ok;
-                    test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN-2',collection_token: 'COLLECTION-TOKEN',token: 'THING-TOKEN'}}));
+                    test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN-2',collection_token: 'COLLECTION-TOKEN',thing_token: 'THING-TOKEN'}}));
+                    (!!test.mockHTTPS.events.end).should.be.ok;
+                    test.mockHTTPS.events.end();
                 });
             };
 
@@ -86,10 +89,11 @@ describe('QiotMqttHost',function() {
                             'Content-Length': 89
                         }
                     });
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
-                        'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN-2","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
+                        'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN-2","collection_token":"COLLECTION-TOKEN","thing_token":"THING-TOKEN"}}',
+                        'DEBUG - host status: OK',
                         'DEBUG - registration received'
                     ]);
 
@@ -106,15 +110,18 @@ describe('QiotMqttHost',function() {
                 test.asyncMidpoint(done,function(){
                     (!!test.mockHTTPS.events.data).should.be.ok;
                     test.mockHTTPS.events.data('{}');
+                    (!!test.mockHTTPS.events.end).should.be.ok;
+                    test.mockHTTPS.events.end();
                 });
             };
 
             host.contact(context).then(function(context){ done('error expected -- success found'); },function(error){
                 test.asyncDone(done,function() {
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host input: {"identity":[{"type":"MAC","value":"00:00:00:00:00:00"}],"label":"MAC-00:00:00:00:00:00"}',
-                        'DEBUG - host output: {}'
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
+                        'DEBUG - host output: {}',
+                        'DEBUG - host status: OK'
                     ]);
                     error.should.eql('no registration received');
                     host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
@@ -181,6 +188,7 @@ describe('QiotMqttHost',function() {
                         'on:reconnect',
                         'on:close',
                         'on:offline',
+                        'subscribe:1/m/THING-TOKEN:{"qos":0}',
                         'on:connect',
                         'on:message',
                         'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
@@ -202,8 +210,92 @@ describe('QiotMqttHost',function() {
 
             _.defer(function(){
                 test.asyncMidpoint(done,function(){
-                    (!!test.mockMQTT.clients[0].topics['publish']).should.be.ok;
-                    test.mockMQTT.clients[0].topics['publish']('test-error',null);
+                    (!!test.mockMQTT.clients[0].topics.publish).should.be.ok;
+                    test.mockMQTT.clients[0].topics.publish('test-error',null);
+                })
+            });
+        });
+
+        it('should trigger a phonehome-wakeup event if its mailbox topic receives a message',function(done){
+            var emitter = new events.EventEmitter();
+            var host = new QiotMqttHost(emitter);
+
+            emitter.on('phonehome',function(action){
+                test.asyncDone(done,function(){
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - topic skipped: UNKOWN-TOPIC',
+                        'DEBUG - mailbox message: {"mailbox":"test"}'
+                    ]);
+                    action.should.eql('wakeup');
+                    host.mailboxMessage.should.eql({mailbox: 'test'});
+                });
+            });
+
+            host.ensureConnection(context).then(function(){
+                test.asyncMidpoint(done,function(){
+                    test.mockMQTT.checkCalls([[
+                        'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                        'on:error',
+                        'on:reconnect',
+                        'on:close',
+                        'on:offline',
+                        'subscribe:1/m/THING-TOKEN:{"qos":0}',
+                        'on:connect',
+                        'on:message'
+                    ]]);
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - start MQTT client',
+                        'DEBUG - connected: {"ack":true}'
+                    ]);
+                    (!!test.mockMQTT.clients[0].topics['on:message']).should.be.ok;
+                    test.mockMQTT.clients[0].topics['on:message']('UNKOWN-TOPIC','null');
+                    test.mockMQTT.clients[0].topics['on:message']('1/m/THING-TOKEN','{"mailbox":"test"}');
+                })
+            },done);
+
+            test.mockMQTT.clients.length.should.eql(1);
+            (!!test.mockMQTT.clients[0].topics['on:connect']).should.be.ok;
+            test.mockMQTT.clients[0].topics['on:connect']({ack: true});
+        });
+
+        it('should update the current context with a mailbox message if it exists',function(done){
+            var host = new QiotMqttHost();
+
+            host.mailboxMessage = {test: 'TEST',time: 'MAILBOX-TIME'};
+
+            host.contact(context).then(function(context){
+                test.asyncDone(done,function(){
+                    test.mockMQTT.checkCalls([[
+                        'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                        'on:error',
+                        'on:reconnect',
+                        'on:close',
+                        'on:offline',
+                        'subscribe:1/m/THING-TOKEN:{"qos":0}',
+                        'on:connect',
+                        'on:message',
+                        'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
+                    ]]);
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - start MQTT client',
+                        'DEBUG - connected: {"ack":true}',
+                        'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - publish successful',
+                        'DEBUG - mailbox delivery{"test":"TEST","time":"MAILBOX-TIME"}'
+                    ]);
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN',test: 'TEST',thing_mailbox_time: 'MAILBOX-TIME'});
+                    host.httpHost.messageQueue.should.eql([]);
+                });
+            },done);
+
+            test.mockMQTT.clients.length.should.eql(1);
+            (!!test.mockMQTT.clients[0].topics['on:connect']).should.be.ok;
+            test.mockMQTT.clients[0].topics['on:connect']({ack: true});
+
+            _.defer(function(){
+                test.asyncMidpoint(done,function(){
+                    (!!test.mockMQTT.clients[0].topics.publish).should.be.ok;
+                    test.mockMQTT.clients[0].topics.publish(null,null);
                 })
             });
         });
@@ -226,8 +318,8 @@ describe('QiotMqttHost',function() {
                         (!!test.mockMQTT.clients[0].topics['on:offline']).should.be.ok;
                         test.mockMQTT.clients[0].topics['on:offline']();
 
-                        (!!test.mockMQTT.clients[0].topics['on:message']).should.be.ok;
-                        test.mockMQTT.clients[0].topics['on:message']('TEST-TOPIC','null');
+                        (!!test.mockMQTT.clients[0].topics.subscribe).should.be.ok;
+                        test.mockMQTT.clients[0].topics.subscribe(null,[{topic:'1/m/THING-TOKEN',qos:0}]);
 
                         test.mockMQTT.checkCalls([[
                             'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
@@ -235,6 +327,7 @@ describe('QiotMqttHost',function() {
                             'on:reconnect',
                             'on:close',
                             'on:offline',
+                            'subscribe:1/m/THING-TOKEN:{"qos":0}',
                             'on:connect',
                             'on:message',
                             'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}',
@@ -247,11 +340,11 @@ describe('QiotMqttHost',function() {
                             'DEBUG - publish successful',
                             'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
                             'DEBUG - publish successful',
-                            'ERROR - test-error',
+                            'ERROR - mqtt error: test-error',
                             'DEBUG - reconnected',
                             'DEBUG - closed',
                             'DEBUG - offline',
-                            'DEBUG - message[TEST-TOPIC] = null'
+                            'DEBUG - subscribe: null:[{"topic":"1/m/THING-TOKEN","qos":0}]'
                         ]);
                         context.should.eql({qiot_thing_token: 'THING-TOKEN'});
                         host.httpHost.messageQueue.should.eql([]);
@@ -260,8 +353,8 @@ describe('QiotMqttHost',function() {
 
                 _.defer(function(){
                     test.asyncMidpoint(done,function(){
-                        (!!test.mockMQTT.clients[0].topics['publish']).should.be.ok;
-                        test.mockMQTT.clients[0].topics['publish'](null,null);
+                        (!!test.mockMQTT.clients[0].topics.publish).should.be.ok;
+                        test.mockMQTT.clients[0].topics.publish(null,null);
                     })
                 });
 
@@ -273,10 +366,11 @@ describe('QiotMqttHost',function() {
 
             _.defer(function(){
                 test.asyncMidpoint(done,function(){
-                    (!!test.mockMQTT.clients[0].topics['publish']).should.be.ok;
-                    test.mockMQTT.clients[0].topics['publish'](null,null);
+                    (!!test.mockMQTT.clients[0].topics.publish).should.be.ok;
+                    test.mockMQTT.clients[0].topics.publish(null,null);
                 })
             });
         });
+
     });
 });

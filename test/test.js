@@ -58,6 +58,7 @@ MockHelpers.resetMock = function(){
     MockHelpers.filesSaved = [];
     MockHelpers.filesToRequire = {};
     MockHelpers.filesRequired = [];
+    MockHelpers.processENV = _.clone(helpers.processENV);
     helpers.resetLogger();
 };
 
@@ -224,26 +225,36 @@ var MockHTTP = {
         MockHTTP.requestError = null;
         MockHTTP.lastOptions = null;
         MockHTTP.written = [];
-        MockHTTP.deferAfterEnd = function() {};
+        MockHTTP.deferAfterEnd = null;
     },
     createServer: function(app){ MockHTTP.app = app; return MockHTTP; },
     listen: function(port){ MockHTTP.port = port; },
     address: function(){ return MockHTTP.addressResult || {addr: 'host',port: MockHTTP.port || 1234}; },
     on: function(event,callback){ MockHTTP.events[event] = callback; return MockHTTP; },
-    request: function(options,callback){ MockHTTP.lastOptions = options; MockHTTP.callback = callback; return MockHTTP; },
+    request: function(options,callback){
+        MockHTTP.lastOptions = options;
+        MockHTTP.callback = callback;
+        return MockHTTP;
+    },
     write: function(data) { MockHTTP.written.push(data); },
     send: function(data) { MockHTTP.written.push({send: data}); },
     end: function() {
-        if (MockHTTP.requestError) {
-            var error = new Error(MockHTTP.requestError);
-            MockHTTP.written.push(error);
-            MockHTTP.events.error && MockHTTP.events.error(error);
-        } else {
-            MockHTTP.written.push(null);
-            MockHTTP.callback && MockHTTP.callback({statusCode: MockHTTP.statusCode,statusMessage: MockHTTP.statusMessage,headers: MockHTTP.headers,on: MockHTTP.on});
+        _.defer(function(){
+            var deferAfterEnd = MockHTTP.deferAfterEnd;
+            var callback = MockHTTP.callback;
+
             MockHTTP.callback = null;
-        }
-        _.defer(MockHTTP.deferAfterEnd);
+
+            if (MockHTTP.requestError) {
+                var error = new Error(MockHTTP.requestError);
+                MockHTTP.written.push(error);
+                MockHTTP.events.error && MockHTTP.events.error(error);
+            } else {
+                MockHTTP.written.push(null);
+                callback && callback({statusCode: MockHTTP.statusCode,statusMessage: MockHTTP.statusMessage,headers: MockHTTP.headers,on: MockHTTP.on});
+            }
+            deferAfterEnd ? deferAfterEnd() : MockHTTP.events.end && MockHTTP.events.end();
+        });
     },
     checkWritten: function(written){
         MockHTTP.written.should.eql(written || []);
@@ -265,27 +276,42 @@ var MockHTTPS = {
         MockHTTPS.statusMessage = null;
         MockHTTPS.requestError = null;
         MockHTTPS.lastOptions = null;
+        MockHTTPS.requested = [];
         MockHTTPS.written = [];
-        MockHTTPS.deferAfterEnd = function(){};
+        MockHTTPS.deferAfterEnd = null;
     },
     createServer: function(app){ MockHTTPS.app = app; return MockHTTPS; },
     listen: function(port){ MockHTTPS.port = port; },
     address: function(){ return MockHTTPS.addressResult || {addr: 'host',port: MockHTTPS.port || 1234}; },
-    on: function(event,callback){ MockHTTPS.events[event] = callback; return MockHTTPS; },
-    request: function(options,callback){ MockHTTPS.lastOptions = options; MockHTTPS.callback = callback; return MockHTTPS; },
+    on: function(event,callback){
+        MockHTTPS.events[event] = callback;
+        return MockHTTPS;
+    },
+    request: function(options,callback){
+        MockHTTPS.requested.push(options);
+        MockHTTPS.lastOptions = options;
+        MockHTTPS.callback = callback;
+        return MockHTTPS;
+    },
     write: function(data) { MockHTTPS.written.push(data); },
     send: function(data) { MockHTTPS.written.push({send: data}); },
     end: function() {
-        if (MockHTTPS.requestError) {
-            var error = new Error(MockHTTPS.requestError);
-            MockHTTPS.written.push(error);
-            MockHTTPS.events.error && MockHTTPS.events.error(error);
-        } else {
-            MockHTTPS.written.push(null);
-            MockHTTPS.callback && MockHTTPS.callback({statusCode: MockHTTPS.statusCode,statusMessage: MockHTTPS.statusMessage,headers: MockHTTPS.headers,on: MockHTTPS.on});
+        _.defer(function(){
+            var deferAfterEnd = MockHTTPS.deferAfterEnd;
+            var callback = MockHTTPS.callback;
+
             MockHTTPS.callback = null;
-        }
-        _.defer(MockHTTPS.deferAfterEnd);
+
+            if (MockHTTPS.requestError) {
+                var error = new Error(MockHTTPS.requestError);
+                MockHTTPS.written.push(error);
+                MockHTTPS.events.error && MockHTTPS.events.error(error);
+            } else {
+                MockHTTPS.written.push(null);
+                callback && callback({statusCode: MockHTTPS.statusCode,statusMessage: MockHTTPS.statusMessage,headers: MockHTTPS.headers,on: MockHTTPS.on});
+            }
+            deferAfterEnd ? deferAfterEnd() : MockHTTPS.events.end && MockHTTPS.events.end();
+        });
     },
     checkWritten: function(written){
         MockHTTPS.written.should.eql(written || []);
@@ -562,6 +588,10 @@ MockMQTT.connect = function(url,options,callback){
 
 MockClient.prototype.publish = function(topic,message,options,callback){
     this.recordCallback('publish','publish:' + topic + ':' + message + ':' + JSON.stringify(options),callback);
+};
+
+MockClient.prototype.subscribe = function(topic,options,callback){
+    this.recordCallback('subscribe','subscribe:' + topic + ':' + JSON.stringify(options),callback);
 };
 
 module.exports.mockMQTT = MockMQTT;
