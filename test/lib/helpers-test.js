@@ -43,17 +43,17 @@ describe('helpers',function(){
 
     describe('bestHost',function(){
         it('should return a BasicHost by default',function(){
-            helpers.bestHost({}).should.be.ok;
+            helpers.bestHost(null,{}).should.be.ok;
             helpers.lastHostName.should.eql('host-basic');
         });
 
         it('should return a QiotMqttHost if settings has a qiot_account_token',function(){
-            helpers.bestHost({qiot_account_token: 'ACCOUNT-TOKEN'}).should.be.ok;
+            helpers.bestHost(null,{qiot_account_token: 'ACCOUNT-TOKEN'}).should.be.ok;
             helpers.lastHostName.should.eql('host-qiot-mqtt');
         });
 
         it('should return a QiotHttpHost if explicitly in the settings',function(){
-            helpers.bestHost({host_handler: 'host-qiot-http'}).should.be.ok;
+            helpers.bestHost(null,{host_handler: 'host-qiot-http'}).should.be.ok;
             helpers.lastHostName.should.eql('host-qiot-http');
         });
     });

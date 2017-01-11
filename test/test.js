@@ -590,4 +590,8 @@ MockClient.prototype.publish = function(topic,message,options,callback){
     this.recordCallback('publish','publish:' + topic + ':' + message + ':' + JSON.stringify(options),callback);
 };
 
+MockClient.prototype.subscribe = function(topic,options,callback){
+    this.recordCallback('subscribe','subscribe:' + topic + ':' + JSON.stringify(options),callback);
+};
+
 module.exports.mockMQTT = MockMQTT;
