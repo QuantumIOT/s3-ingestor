@@ -69,7 +69,7 @@ describe('QiotMqttHost',function() {
             test.mockHTTPS.deferAfterEnd = function(){
                 test.asyncMidpoint(done,function(){
                     (!!test.mockHTTPS.events.data).should.be.ok;
-                    test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN-2',collection_token: 'COLLECTION-TOKEN',token: 'THING-TOKEN'}}));
+                    test.mockHTTPS.events.data(JSON.stringify({thing: {account_token: 'ACCOUNT-TOKEN-2',collection_token: 'COLLECTION-TOKEN',thing_token: 'THING-TOKEN'}}));
                     (!!test.mockHTTPS.events.end).should.be.ok;
                     test.mockHTTPS.events.end();
                 });
@@ -91,7 +91,7 @@ describe('QiotMqttHost',function() {
                     test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
-                        'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN-2","collection_token":"COLLECTION-TOKEN","token":"THING-TOKEN"}}',
+                        'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN-2","collection_token":"COLLECTION-TOKEN","thing_token":"THING-TOKEN"}}',
                         'DEBUG - host status: OK',
                         'DEBUG - registration received'
                     ]);
