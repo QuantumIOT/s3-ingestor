@@ -106,7 +106,7 @@ describe('PolicyDownload',function() {
                 deletedFILES.should.eql([]);
                 test.mockLogger.checkMockLogEntries([
                     'DEBUG - consider: test',
-                    'DEBUG - ...getObject failed for key: test',
+                    // 'DEBUG - ...getObject failed for key: test',
                     'ERROR - download error: getObject-error test'
                 ]);
                 test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}],['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
@@ -136,7 +136,7 @@ describe('PolicyDownload',function() {
                     deletedFILES.should.eql([]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - consider: test'
-                        // 'ERROR - download error: writeFile-error'
+                        // 'ERROR - download error: writeFile-error test'
                     ]);
                     test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}],['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
                     test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
