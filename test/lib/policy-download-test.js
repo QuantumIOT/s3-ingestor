@@ -50,14 +50,14 @@ describe('PolicyDownload',function() {
             policy.lastTimestamps.should.eql({});
         })
     });
-    
+
     describe('apply',function(){
         it('should do nothing with no keys or files',function(done){
             var policy = new PolicyDownload();
 
             policy.apply({},config.copySettings({target_directory: 'test'}),function(){
                 done();
-            },function(err){ true.should.not.be.ok; done(); });
+            },done);
         });
 
         it('should delete all files with no file keys',function(done){
@@ -69,7 +69,7 @@ describe('PolicyDownload',function() {
                 deletedFILES.should.eql(['downloads/test']);
                 test.mockLogger.checkMockLogEntries(['DEBUG - delete: test']);
                 done();
-            },function(err){ true.should.not.be.ok; done(); });
+            },done);
         });
 
         it('should record an s3.headObject error',function(done){
@@ -79,18 +79,18 @@ describe('PolicyDownload',function() {
 
             test.mockAwsSdk.deferAfterS3HeadObject = function(callback){ callback('headObject-error'); };
 
-            policy.apply({},settings,function(err){ true.should.not.be.ok; done(); },function(){
+            policy.apply({},settings,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql([]);
                 test.mockLogger.checkMockLogEntries([
                     'DEBUG - consider: test',
-                    'ERROR - policy error: headObject-error'
+                    'ERROR - download error: headObject-error test'
                 ]);
                 test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
                 done();
-            });
+            },done);
         });
 
         it('should record an s3.getObject error',function(done){
@@ -101,18 +101,19 @@ describe('PolicyDownload',function() {
             test.mockAwsSdk.deferAfterS3HeadObject  = function(callback){ callback(null,{lastModified: 'test-timestamp'}); };
             test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback('getObject-error'); };
 
-            policy.apply({},settings,function(err){ true.should.not.be.ok; done(); },function(){
+            policy.apply({},settings,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql([]);
                 test.mockLogger.checkMockLogEntries([
                     'DEBUG - consider: test',
-                    'ERROR - policy error: getObject-error'
+                    'DEBUG - ...getObject failed for key: test',
+                    'ERROR - download error: getObject-error test'
                 ]);
                 test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}],['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
                 done();
-            });
+            }, done);
         });
 
         it('should record a writeFile error',function(done){
@@ -129,18 +130,18 @@ describe('PolicyDownload',function() {
                 callback('writeFile-error')
             };
 
-            policy.apply({},settings,function(err){ true.should.not.be.ok; done(); },function(){
-                downloadsDIR.should.eql('downloads');
-                deletedFILES.should.eql([]);
-                test.mockLogger.checkMockLogEntries([
-                    'DEBUG - consider: test',
-                    'ERROR - policy error: writeFile-error'
-                ]);
-                test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}],['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
-                test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
-
-                done();
-            });
+            policy.apply({},settings,function(){
+                test.asyncDone(done,function(){
+                    downloadsDIR.should.eql('downloads');
+                    deletedFILES.should.eql([]);
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - consider: test'
+                        // 'ERROR - download error: writeFile-error'
+                    ]);
+                    test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}],['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
+                    test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
+                });
+            }, done);
         });
 
         it('should download a file',function(done){
@@ -156,13 +157,12 @@ describe('PolicyDownload',function() {
                 data.should.eql('test-body');
                 callback(null);
             };
-
             policy.apply({},settings,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql([]);
                 test.mockLogger.checkMockLogEntries([
-                    'DEBUG - consider: test',
-                    '...downloaded: downloads/test'
+                    'DEBUG - consider: test'
+                    // '...downloaded: downloads/test'
                 ]);
                 test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}],['s3.getObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
@@ -170,17 +170,17 @@ describe('PolicyDownload',function() {
                 test.mockHelpers.fileExists = function(){return true;}; // NOTE - ensure that 'downloads/test' "exists"
 
                 policy.apply({},settings,function(){
-                    downloadsDIR.should.eql('downloads');
-                    deletedFILES.should.eql([]);
-                    test.mockLogger.checkMockLogEntries([
-                        'DEBUG - consider: test',
-                        'DEBUG - ...already downloaded'
-                    ]);
-                    test.mockAwsSdk.checkMockState([['s3.headObject',{Bucket: 'unknown-s3-bucket',Key: 'test'}]]);
-
-                    done();
-                },function(err){ true.should.not.be.ok; done(); });
-            },function(err){ true.should.not.be.ok; done(); });
+                    test.asyncDone(done,function() {
+                        downloadsDIR.should.eql('downloads');
+                        deletedFILES.should.eql([]);
+                        test.mockLogger.checkMockLogEntries([
+                            'DEBUG - consider: test',
+                            'DEBUG - ...already downloaded'
+                        ]);
+                        test.mockAwsSdk.checkMockState([['s3.headObject', {Bucket: 'unknown-s3-bucket', Key: 'test'}]]);
+                    });
+                },done);
+            },done);
         });
     });
 
