@@ -26,6 +26,7 @@
     "glob": "^7.0.3",
     "http-status-codes": "^1.0.6",
     "lodash": "^4.10.0",
+    "mqtt": "^2.2.1",
     "redis": "^2.6.1",
     "then-redis": "^2.0.1"
   },

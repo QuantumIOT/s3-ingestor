@@ -578,11 +578,11 @@ MockClient.prototype.on = function(topic,callback) {
     this.recordCallback('on:' + topic,'on:' + topic,callback);
 };
 
-MockMQTT.connect = function(url,options,callback){
+MockMQTT.connect = function(options,callback){
     if (MockMQTT.connectError) throw MockMQTT.connectError;
 
     var client = new MockClient();
-    client.recordCallback('new','new:' + url + ':' + JSON.stringify(options),null);
+    client.recordCallback('new','new:' + JSON.stringify(options),null);
     return client;
 };
 

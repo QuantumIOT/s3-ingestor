@@ -183,7 +183,7 @@ describe('QiotMqttHost',function() {
             host.contact(context).then(function(){ done('unexpected success')},function(error){
                 test.asyncDone(done,function(){
                     test.mockMQTT.checkCalls([[
-                        'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                        'new:{"host":"api.qiot.io","port":1883,"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
                         'on:error',
                         'on:reconnect',
                         'on:close',
@@ -234,7 +234,7 @@ describe('QiotMqttHost',function() {
             host.ensureConnection(context).then(function(){
                 test.asyncMidpoint(done,function(){
                     test.mockMQTT.checkCalls([[
-                        'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                        'new:{"host":"api.qiot.io","port":1883,"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
                         'on:error',
                         'on:reconnect',
                         'on:close',
@@ -266,7 +266,7 @@ describe('QiotMqttHost',function() {
             host.contact(context).then(function(context){
                 test.asyncDone(done,function(){
                     test.mockMQTT.checkCalls([[
-                        'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                        'new:{"host":"api.qiot.io","port":1883,"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
                         'on:error',
                         'on:reconnect',
                         'on:close',
@@ -322,7 +322,7 @@ describe('QiotMqttHost',function() {
                         test.mockMQTT.clients[0].topics.subscribe(null,[{topic:'1/m/THING-TOKEN',qos:0}]);
 
                         test.mockMQTT.checkCalls([[
-                            'new:mqtt://api.qiot.io:{"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                            'new:{"host":"api.qiot.io","port":1883,"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
                             'on:error',
                             'on:reconnect',
                             'on:close',
