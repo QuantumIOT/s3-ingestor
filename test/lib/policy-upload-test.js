@@ -19,7 +19,7 @@ describe('PolicyUpload',function() {
         test.mockery.registerAllowables(['./aws','./config','./logger','lodash',configModule]);
         test.mockery.registerMock('aws-sdk', test.mockAwsSdk);
         test.mockAwsSdk.resetMock();
-        test.mockery.registerMock('glob', test.mockGlob);
+        test.mockery.registerMock('qiot-glob', test.mockGlob);
         test.mockGlob.resetMock();
         test.mockery.registerMock('./helpers', test.mockHelpers);
         test.mockHelpers.resetMock();
