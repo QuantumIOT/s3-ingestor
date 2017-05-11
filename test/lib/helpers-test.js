@@ -110,6 +110,16 @@ describe('helpers',function(){
         });
     });
 
+    describe('renameFile',function(){
+        it('should detect an error renaming a file',function(){
+            (!!helpers.fileExists('test/test.js')).should.be.ok;
+        });
+
+        it('should return null for invalid json',function(){
+            (!!helpers.fileExists('unknown.txt')).should.not.be.ok;
+        });
+    });
+
     describe('requireLIB',function(){
         it('should return null if a requested module does not exist',function(){
             (!!helpers.requireLIB('unknown')).should.not.be.ok;
