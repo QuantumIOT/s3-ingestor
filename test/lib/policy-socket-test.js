@@ -55,9 +55,13 @@ describe('PolicySocket',function() {
     
     describe('apply',function(){
         it('should start the socket and uploads',function(done){
+            var context = {};
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply(context,config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+
+            context.result.should.eql({added: 0,skipped: 0,ignored: 0,sent: 0,errors: 0,status: 'pending'});
+            policy.stats.should.eql({added: 0,skipped: 0,ignored: 0,sent: 0,errors: 0});
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
             test.mockNET.checkSockets([[
