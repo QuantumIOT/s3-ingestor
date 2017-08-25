@@ -150,7 +150,7 @@ describe('PolicySocket',function() {
             test.mockNET.resetMock();
         });
 
-        it('should detect timeout',function(){
+        it('should detect timeout and preserve that error for the next heartbeat',function(){
             var policy = new PolicySocket();
 
             policy.settings = config.copySettings({socket_port: 1234,socket_host: 'test-host'});
@@ -168,6 +168,10 @@ describe('PolicySocket',function() {
                 'connect:test-host:1234',
                 'destroy'
             ]]);
+            test.mockNET.resetMock();
+
+            policy.ensureSocket();
+            policy.stats.should.eql({added: 0,skipped: 0,ignored: 0,sent: 0,errors: 1,status: 'error: timeout'});
             test.mockNET.resetMock();
         });
 
