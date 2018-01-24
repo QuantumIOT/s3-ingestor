@@ -221,5 +221,34 @@ describe('PolicyUpload',function() {
                 },done);
             },done);
         });
+
+        it('should upload a file and delete it',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: []}); };
+            test.mockAwsSdk.deferAfterS3Upload = function(callback){ callback(null,true); };
+
+            var deletedFILES = [];
+            test.mockHelpers.unlinkSync = function(target) { deletedFILES.push(target); };
+
+            var context     = {result: result};
+            var policy      = new PolicyUpload();
+
+            policy.delete_after_upload = true;
+            policy.lastSeenList.should.eql({});
+
+            policy.apply(context,config.copySettings(),function(){
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
+                    ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
+                ]);
+                test.mockLogger.checkMockLogEntries(['... add: test/data/test.json => test/data/test.json']);
+                test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
+                deletedFILES.should.eql(['test/data/test.json']);
+                done();
+            },done);
+        });
     });
 });
