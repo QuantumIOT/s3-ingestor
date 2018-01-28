@@ -233,11 +233,13 @@ describe('PolicyUpload',function() {
 
             var context     = {result: result};
             var policy      = new PolicyUpload();
+            var settings    = config.copySettings();
 
-            policy.delete_after_upload = true;
+            settings.delete_after_upload = true;
+
             policy.lastSeenList.should.eql({});
 
-            policy.apply(context,config.copySettings(),function(){
+            policy.apply(context,settings,function(){
                 context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
 
                 test.mockAwsSdk.checkMockState([
