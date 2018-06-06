@@ -252,5 +252,108 @@ describe('PolicyUpload',function() {
                 done();
             },done);
         });
+
+        it('should upload a file and move it',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: []}); };
+            test.mockAwsSdk.deferAfterS3Upload = function(callback){ callback(null,true); };
+
+            var renamedFILES = [];
+            test.mockHelpers.renameSync = function(src,dst) { renamedFILES.push([src,dst]); };
+
+            var context     = {result: result};
+            var policy      = new PolicyUpload();
+            var settings    = config.copySettings();
+
+            test.mockHelpers.fileExists = function(filename) { return {isDirectory: function() {return filename == settings.move_after_upload}} };
+
+            settings.input_remove_prefix    = 'test/data/';
+            settings.output_key_prefix      = 'upload/';
+            settings.move_after_upload      = 'moved/';
+
+            policy.lastSeenList.should.eql({});
+
+            policy.apply(context,settings,function(){
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'upload/test.json'}],
+                    ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'upload/test.json',Body: true}]
+                ]);
+                test.mockLogger.checkMockLogEntries(['... add: test/data/test.json => upload/test.json']);
+                test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
+                renamedFILES.should.eql([['test/data/test.json','moved/test.json']]);
+                done();
+            },done);
+        });
+
+        it('should upload a file and detect invalid move directory',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: []}); };
+            test.mockAwsSdk.deferAfterS3Upload = function(callback){ callback(null,true); };
+
+            var context     = {result: result};
+            var policy      = new PolicyUpload();
+            var settings    = config.copySettings();
+
+            test.mockHelpers.fileExists = function(filename) { return {isDirectory: function() {return false}} };
+
+            settings.input_remove_prefix    = 'test/data/';
+            settings.output_key_prefix      = 'upload/';
+            settings.move_after_upload      = 'moved/';
+
+            policy.lastSeenList.should.eql({});
+
+            policy.apply(context,settings,function(){
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'upload/test.json'}],
+                    ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'upload/test.json',Body: true}]
+                ]);
+                test.mockLogger.checkMockLogEntries([
+                    '... add: test/data/test.json => upload/test.json',
+                    'ERROR - invalid move directory: moved/'
+                ]);
+                test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
+                done();
+            },done);
+        });
+
+        it('should upload a file and detect failed rename',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: []}); };
+            test.mockAwsSdk.deferAfterS3Upload = function(callback){ callback(null,true); };
+
+            test.mockHelpers.renameSync = function(src,dst) { throw 'test-error'; };
+
+            var context     = {result: result};
+            var policy      = new PolicyUpload();
+            var settings    = config.copySettings();
+
+            test.mockHelpers.fileExists = function(filename) { return {isDirectory: function() {return filename === settings.move_after_upload}} };
+
+            settings.move_after_upload      = 'moved/';
+
+            policy.lastSeenList.should.eql({});
+
+            policy.apply(context,settings,function(){
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
+                    ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
+                ]);
+                test.mockLogger.checkMockLogEntries([
+                    '... add: test/data/test.json => test/data/test.json',
+                    'ERROR - rename error: test-error'
+                ]);
+                test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
+                done();
+            },done);
+        });
     });
 });
