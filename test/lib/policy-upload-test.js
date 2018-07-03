@@ -195,7 +195,7 @@ describe('PolicyUpload',function() {
                     context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 1}});
                     test.mockLogger.checkMockLogEntries(['DEBUG - ... unchanged: test/data/test.json']);
 
-                    test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size}]}); };
+                    test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size,LastModified: lastSeen.mtime}]}); };
                     lastSeen.mtime = lastSeen.atime;
 
                     policy.apply(context,config.copySettings(),function(){
@@ -205,7 +205,7 @@ describe('PolicyUpload',function() {
 
                         var lastSeen = policy.lastSeenList['test/data/test.json'];
                         lastSeen.mtime = lastSeen.atime;
-                        test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size + 1}]}); };
+                        test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size + 1,LastModified: lastSeen.mtime}]}); };
 
                         policy.apply(context,config.copySettings(),function(){
                             context.should.eql({result: {added: 1,updated: 1,skipped: 1,ignored: 0,unchanged: 1}});
