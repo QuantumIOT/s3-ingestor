@@ -222,6 +222,70 @@ describe('PolicyUpload',function() {
             },done);
         });
 
+        it('should upload a file each time regardless of previous stats',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
+
+            test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: []}); };
+            test.mockAwsSdk.deferAfterS3Upload = function(callback){ callback(null,true); };
+
+            var context     = {result: result};
+            var policy      = new PolicyUpload();
+            var settings    = config.copySettings();
+
+            settings.force_upload = true;
+
+            policy.lastSeenList.should.eql({});
+
+            policy.apply(context,settings,function(){
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+
+                var lastSeen = policy.lastSeenList['test/data/test.json'];
+                (!!lastSeen).should.be.ok;
+                test.mockAwsSdk.checkMockState([
+                    ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
+                    ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
+                ]);
+                test.mockLogger.checkMockLogEntries(['... add: test/data/test.json => test/data/test.json']);
+                test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
+
+                policy.apply(context,settings,function(){
+                    context.should.eql({result: {added: 2,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                    test.mockLogger.checkMockLogEntries(['... add: test/data/test.json => test/data/test.json']);
+                    test.mockAwsSdk.checkMockState([
+                        ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
+                        ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
+                    ]);
+
+                    test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size,LastModified: lastSeen.mtime}]}); };
+                    lastSeen.mtime = lastSeen.atime;
+
+                    policy.apply(context,settings,function(){
+                        context.should.eql({result: {added: 2,updated: 1,skipped: 0,ignored: 0,unchanged: 0}});
+                        test.mockLogger.checkMockLogEntries(['... update: test/data/test.json => test/data/test.json']);
+                        test.mockAwsSdk.checkMockState([
+                            ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
+                            ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
+                        ]);
+
+                        var lastSeen = policy.lastSeenList['test/data/test.json'];
+                        lastSeen.mtime = lastSeen.atime;
+                        test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size,LastModified: lastSeen.mtime}]}); };
+
+                        policy.apply(context,settings,function(){
+                            context.should.eql({result: {added: 2,updated: 2,skipped: 0,ignored: 0,unchanged: 0}});
+                            test.mockAwsSdk.checkMockState([
+                                ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
+                                ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
+                            ]);
+                            test.mockLogger.checkMockLogEntries(['... update: test/data/test.json => test/data/test.json']);
+
+                            done();
+                        },done);
+                    },done);
+                },done);
+            },done);
+        });
+
         it('should upload a file and delete it',function(done){
             test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
 
