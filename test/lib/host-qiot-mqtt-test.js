@@ -2,6 +2,8 @@ var _ = require('lodash');
 var events = require('events');
 var test = require('../test');
 
+var os = require('os');
+
 var QiotMqttHost = require(process.cwd() + '/lib/host-qiot-mqtt');
 
 describe('QiotMqttHost',function() {
@@ -26,6 +28,8 @@ describe('QiotMqttHost',function() {
         test.mockHelpers.resetMock();
 
         test.mockLogger.debugging = true;
+
+        os.hostname = function(){ return 'TESTHOST'; }
     });
 
     afterEach(function () {
@@ -55,7 +59,6 @@ describe('QiotMqttHost',function() {
         beforeEach(function(){
             context                            = {};
             config.settings.qiot_account_token = 'ACCOUNT-TOKEN';
-            test.mockHelpers.networkInterfaces = function (){ return {if: [{mac: 'a0:b0:c0:d0:e0:f0'}]}; }
         });
 
         it('should report that registration is required',function(){
@@ -86,19 +89,25 @@ describe('QiotMqttHost',function() {
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': 'QIOT ACCOUNT-TOKEN',
-                            'Content-Length': 89
+                            'Content-Length': 81
                         }
                     });
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"HOSTNAME","value":"TESTHOST"}],"label":"HOSTNAME-TESTHOST"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"HOSTNAME","value":"TESTHOST"}],"label":"HOSTNAME-TESTHOST"}',
                         'DEBUG - host output: {"thing":{"account_token":"ACCOUNT-TOKEN-2","collection_token":"COLLECTION-TOKEN","thing_token":"THING-TOKEN"}}',
                         'DEBUG - host status: OK',
                         'DEBUG - registration received'
                     ]);
 
-                    context.should.eql({state: 'registered',config: {qiot_account_token: 'ACCOUNT-TOKEN-2'},qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'});
-                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
+                    context.should.eql({state: 'registered',qiot_collection_token: 'COLLECTION-TOKEN',qiot_thing_token: 'THING-TOKEN'});
+                    host.httpHost.messageQueue.should.eql([{
+                        state:      'unspecified',
+                        state_id:   -1,
+                        action:     'unspecified',
+                        action_id:  -1,
+                        version:    'unspecified'
+                    }]);
                 });
             },done);
         });
@@ -117,14 +126,20 @@ describe('QiotMqttHost',function() {
 
             host.contact(context).then(function(context){ done('error expected -- success found'); },function(error){
                 test.asyncDone(done,function() {
-                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',null]);
+                    test.mockHTTPS.checkWritten(['{"identity":[{"type":"HOSTNAME","value":"TESTHOST"}],"label":"HOSTNAME-TESTHOST"}',null]);
                     test.mockLogger.checkMockLogEntries([
-                        'DEBUG - host POST /1/r: {"identity":[{"type":"MAC","value":"a0:b0:c0:d0:e0:f0"}],"label":"MAC-a0:b0:c0:d0:e0:f0"}',
+                        'DEBUG - host POST /1/r: {"identity":[{"type":"HOSTNAME","value":"TESTHOST"}],"label":"HOSTNAME-TESTHOST"}',
                         'DEBUG - host output: {}',
                         'DEBUG - host status: OK'
                     ]);
                     error.should.eql('no registration received');
-                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
+                    host.httpHost.messageQueue.should.eql([{
+                        state:      'unspecified',
+                        state_id:   -1,
+                        action:     'unspecified',
+                        action_id:  -1,
+                        version:    'unspecified'
+                    }]);
                 });
             });
         });
@@ -154,7 +169,13 @@ describe('QiotMqttHost',function() {
                         'DEBUG - start MQTT client'
                     ]);
                     error.should.eql('invalid credentials');
-                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
+                    host.httpHost.messageQueue.should.eql([{
+                        state:      'unspecified',
+                        state_id:   -1,
+                        action:     'unspecified',
+                        action_id:  -1,
+                        version:    'unspecified'
+                    }]);
                 });
             });
         });
@@ -172,7 +193,13 @@ describe('QiotMqttHost',function() {
                         'ERROR - connection error: test-error'
                     ]);
                     error.should.eql('test-error');
-                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
+                    host.httpHost.messageQueue.should.eql([{
+                        state:      'unspecified',
+                        state_id:   -1,
+                        action:     'unspecified',
+                        action_id:  -1,
+                        version:    'unspecified'
+                    }]);
                 });
             });
         });
@@ -191,16 +218,22 @@ describe('QiotMqttHost',function() {
                         'subscribe:1/m/THING-TOKEN:{"qos":0}',
                         'on:connect',
                         'on:message',
-                        'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
+                        'publish:/1/l/THING-TOKEN:{"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}:{"qos":0,"retain":true}'
                     ]]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - start MQTT client',
                         'DEBUG - connected: {"ack":true}',
-                        'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - publish: {"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}',
                         'ERROR - publish error: test-error'
                     ]);
                     error.should.eql('test-error');
-                    host.httpHost.messageQueue.should.eql([{action: 'unspecified', version: 'unspecified', info: {}, stats: {}}]);
+                    host.httpHost.messageQueue.should.eql([{
+                        state:      'unspecified',
+                        state_id:   -1,
+                        action:     'unspecified',
+                        action_id:  -1,
+                        version:    'unspecified'
+                    }]);
                 });
             });
 
@@ -261,7 +294,7 @@ describe('QiotMqttHost',function() {
         it('should update the current context with a mailbox message if it exists',function(done){
             var host = new QiotMqttHost();
 
-            host.mailboxMessage = {test: 'TEST',time: 'MAILBOX-TIME'};
+            host.mailboxMessage = {id: 1,payload: JSON.stringify({test: 'TEST'})};
 
             host.contact(context).then(function(context){
                 test.asyncDone(done,function(){
@@ -274,16 +307,18 @@ describe('QiotMqttHost',function() {
                         'subscribe:1/m/THING-TOKEN:{"qos":0}',
                         'on:connect',
                         'on:message',
-                        'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
+                        'publish:/1/l/THING-TOKEN:{"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}:{"qos":0,"retain":true}'
                     ]]);
                     test.mockLogger.checkMockLogEntries([
                         'DEBUG - start MQTT client',
                         'DEBUG - connected: {"ack":true}',
-                        'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                        'DEBUG - publish: {"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}',
                         'DEBUG - publish successful',
-                        'DEBUG - mailbox delivery{"test":"TEST","time":"MAILBOX-TIME"}'
+                        'DEBUG - mailbox delivery: {"id":1,"payload":"{\\"test\\":\\"TEST\\"}"}',
+                        'DEBUG - host POST /1/a/THING-TOKEN: {"status":"success","command_id":1}',
+                        'DEBUG - host status: OK'
                     ]);
-                    context.should.eql({qiot_thing_token: 'THING-TOKEN',test: 'TEST',thing_mailbox_time: 'MAILBOX-TIME'});
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN',test: 'TEST',last_mailbox_id: 1});
                     host.httpHost.messageQueue.should.eql([]);
                 });
             },done);
@@ -330,15 +365,15 @@ describe('QiotMqttHost',function() {
                             'subscribe:1/m/THING-TOKEN:{"qos":0}',
                             'on:connect',
                             'on:message',
-                            'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}',
-                            'publish:/1/l/THING-TOKEN:{"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}:{"qos":0,"retain":true}'
+                            'publish:/1/l/THING-TOKEN:{"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}:{"qos":0,"retain":true}',
+                            'publish:/1/l/THING-TOKEN:{"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}:{"qos":0,"retain":true}'
                         ]]);
                         test.mockLogger.checkMockLogEntries([
                             'DEBUG - start MQTT client',
                             'DEBUG - connected: {"ack":true}',
-                            'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                            'DEBUG - publish: {"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}',
                             'DEBUG - publish successful',
-                            'DEBUG - publish: {"messages":[{"action":"unspecified","version":"unspecified","info":{},"stats":{}}]}',
+                            'DEBUG - publish: {"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}',
                             'DEBUG - publish successful',
                             'ERROR - mqtt error: test-error',
                             'DEBUG - reconnected',
