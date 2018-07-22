@@ -278,7 +278,7 @@ describe('PhoneHome',function() {
             };
 
             test.mockHelpers.processExec = function(command,callback){
-                command.should.eql('npm update s3-ingestor');
+                command.should.eql('npm install s3-ingestor');
                 callback(null);
             };
 
@@ -304,7 +304,7 @@ describe('PhoneHome',function() {
             };
 
             test.mockHelpers.processExec = function(command,callback){
-                command.should.eql('npm update s3-ingestor');
+                command.should.eql('npm install s3-ingestor');
                 callback('process-error');
             };
 
