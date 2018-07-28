@@ -20,6 +20,7 @@ describe('helpers',function(){
 
         helpers = require(helperPath);
         helpers.resetLogger();
+        helpers.resetCache();
     });
 
     afterEach(function () {
@@ -59,27 +60,64 @@ describe('helpers',function(){
     });
 
     describe('readJSON',function(){
-        it('should read a JSON file if it exists',function(){
-            helpers.readJSON(process.cwd() + '/test/data/test.json',{result: 'default'},{result: 'error'}).should.eql({state: 'test'});
+        it('should read an existing JSON file and cache the result',function(){
+            var filename = process.cwd() + '/test/data/test.json';
+
+            helpers.readJSON(filename,{result: 'default'},{result: 'error'}).should.eql({state: 'test'});
+
+            var cache = {};
+            cache[filename] = '{"state":"test"}';
+
+            helpers.jsonCache.should.eql(cache);
+        });
+
+        it('should read a cached JSON file',function(){
+            var filename = process.cwd() + '/test/data/test-cache.json';
+
+            helpers.jsonCache[filename] = '{"state":"cached"}';
+
+            helpers.readJSON(filename,{result: 'default'},{result: 'error'}).should.eql({state: 'cached'});
         });
 
         it('should return the default value if the file does not exist',function(){
             helpers.readJSON(process.cwd() + '/test/data/missing.json',{result: 'default'},{result: 'error'}).should.eql({result: 'default'});
+
+            helpers.jsonCache.should.eql({});
         });
 
         it('should return the error value if the file is invalid',function(){
             helpers.readJSON(process.cwd() + '/test/data/invalid.json',{result: 'default'},{result: 'error'}).should.eql({result: 'error'});
             test.mockLogger.checkMockLogEntries(['ERROR - SyntaxError: Unexpected end of input']);
+
+            helpers.jsonCache.should.eql({});
         });
     });
 
     describe('saveJSON',function(){
-        it('should save a JSON object to a file',function(){
+        it('should save a JSON object to a file',function(done){
             fs.mkdir('tmp/',function(error) {
                 var testFile = 'tmp/save-test.json';
                 helpers.saveJSON(testFile,{success: true});
                 fs.readFileSync(testFile).toString().should.eql('{"success":true}');
                 fs.unlinkSync(testFile);
+
+                helpers.jsonCache[testFile].should.eql('{"success":true}')
+                done();
+            });
+        });
+
+        it('should skip saving a JSON object to a file if it matches the cache',function(done){
+            fs.mkdir('tmp/',function(error) {
+                var testFile = 'tmp/save-none.json';
+
+                helpers.jsonCache[testFile] = '{"save":"cached"}';
+
+                (!helpers.fileExists(testFile)).should.be.ok;
+
+                helpers.saveJSON(testFile,{save: 'cached'});
+
+                (!helpers.fileExists(testFile)).should.be.ok;
+                done();
             });
         });
 

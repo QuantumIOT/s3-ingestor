@@ -1,6 +1,6 @@
 {
   "name": "s3-ingestor",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "main": "s3-ingestor.js",
   "repository": {
     "type": "git",
