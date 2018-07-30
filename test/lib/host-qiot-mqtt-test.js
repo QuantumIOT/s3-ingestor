@@ -44,6 +44,42 @@ describe('QiotMqttHost',function() {
         test.mockery.disable();
     });
 
+    describe('startMqttClient',function(){
+        it('should retry itself when it goes offline',function(done){
+            var offlineError = '';
+            var host = new QiotMqttHost();
+
+            host.testReject  = done;
+            host.testResolve = function(){
+                offlineError.should.eql('offline');
+
+                test.mockLogger.checkMockLogEntries([
+                    'DEBUG - start MQTT client',
+                    'ERROR - offline',
+                    'DEBUG - start MQTT client',
+                    'DEBUG - connected: {"ack":true}'
+                ]);
+                done();
+            };
+
+            host.startMqttClient('THING-TOKEN','USER','PASS',function(){ done('unexpected success')},function(error){
+                offlineError = error;
+                host.retryPeriod.should.eql(0.5);
+                host.retryPeriod = 0;
+            });
+
+            test.mockMQTT.clients.length.should.eql(1);
+            (!!test.mockMQTT.clients[0].topics['on:offline']).should.be.ok;
+            test.mockMQTT.clients[0].topics['on:offline']();
+
+            _.defer(function(){
+                test.mockMQTT.clients.length.should.eql(2);
+                (!!test.mockMQTT.clients[1].topics['on:connect']).should.be.ok;
+                test.mockMQTT.clients[1].topics['on:connect']({ack: true});
+            });
+        });
+    });
+
     describe('contact - no account token',function(){
         it('should fail without an account token',function(done){
             var host = new QiotMqttHost();
@@ -165,9 +201,7 @@ describe('QiotMqttHost',function() {
             host.contact(context).then(function(){ done('unexpected success')},function(error){
                 test.asyncDone(done,function(){
                     test.mockMQTT.checkCalls();
-                    test.mockLogger.checkMockLogEntries([
-                        'DEBUG - start MQTT client'
-                    ]);
+                    test.mockLogger.checkMockLogEntries([]);
                     error.should.eql('invalid credentials');
                     host.httpHost.messageQueue.should.eql([{
                         state:      'unspecified',
@@ -350,9 +384,6 @@ describe('QiotMqttHost',function() {
                         (!!test.mockMQTT.clients[0].topics['on:close']).should.be.ok;
                         test.mockMQTT.clients[0].topics['on:close']();
 
-                        (!!test.mockMQTT.clients[0].topics['on:offline']).should.be.ok;
-                        test.mockMQTT.clients[0].topics['on:offline']();
-
                         (!!test.mockMQTT.clients[0].topics.subscribe).should.be.ok;
                         test.mockMQTT.clients[0].topics.subscribe(null,[{topic:'1/m/THING-TOKEN',qos:0}]);
 
@@ -378,7 +409,6 @@ describe('QiotMqttHost',function() {
                             'ERROR - mqtt error: test-error',
                             'DEBUG - reconnected',
                             'DEBUG - closed',
-                            'DEBUG - offline',
                             'DEBUG - subscribe: null:[{"topic":"1/m/THING-TOKEN","qos":0}]'
                         ]);
                         context.should.eql({qiot_thing_token: 'THING-TOKEN'});

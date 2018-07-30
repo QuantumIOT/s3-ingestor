@@ -595,4 +595,8 @@ MockClient.prototype.subscribe = function(topic,options,callback){
     this.recordCallback('subscribe','subscribe:' + topic + ':' + JSON.stringify(options),callback);
 };
 
+MockClient.prototype.end = function(arg){
+    this.recordCallback('end','end:' + arg,null);
+};
+
 module.exports.mockMQTT = MockMQTT;
