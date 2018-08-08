@@ -56,6 +56,7 @@ describe('QiotMqttHost',function() {
                 test.mockLogger.checkMockLogEntries([
                     'DEBUG - start MQTT client',
                     'ERROR - offline',
+                    'retry in 0',
                     'DEBUG - start MQTT client',
                     'DEBUG - connected: {"ack":true}'
                 ]);
