@@ -111,6 +111,8 @@ describe('QiotHttpHost',function() {
 
             test.mockHTTPS.statusCode = 403;
 
+            host.setWatchdogTimer();
+
             host.contact(context).then(function() { done('unexpected success'); },function(error){
                 test.asyncDone(done,function(){
                     test.mockHTTPS.lastOptions.should.eql({

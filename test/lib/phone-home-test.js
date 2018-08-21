@@ -404,6 +404,9 @@ describe('PhoneHome',function() {
                     test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']]);
 
                     (!!phoneHome.checkTimer).should.be.ok;
+                    (!!phoneHome.host.watchdogTimer).should.be.ok;
+
+                    phoneHome.host.clearWatchdogTimer();
                 });
 
                 emitter.on('phonehome',function(action){
