@@ -107,6 +107,37 @@ describe('PolicyUpload',function() {
             },onReject);
         });
 
+        it('should attempt to delete a directory when delete_after_upload is true',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/'];
+
+            var context     = {};
+            var settings    = config.copySettings();
+            var policy      = new PolicyUpload();
+
+            settings.delete_after_upload = true;
+
+            policy.apply(context,settings,null,function(){
+                test.mockLogger.checkMockLogEntries(['DEBUG - ... not empty: test/']);
+                done();
+            },onReject);
+        });
+
+        it('should delete an empty directory when delete_after_upload is true',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/'];
+
+            var context     = {};
+            var settings    = config.copySettings();
+            var policy      = new PolicyUpload();
+
+            settings.delete_after_upload = true;
+            test.mockHelpers.rmdirSync   = function(){};
+
+            policy.apply(context,settings,null,function(){
+                test.mockLogger.checkMockLogEntries(['DEBUG - ... removed: test/']);
+                done();
+            },onReject);
+        });
+
         it('should ignore a file with a null "buildKey"',function(done){
             test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
 
@@ -294,6 +325,7 @@ describe('PolicyUpload',function() {
 
             var deletedFILES = [];
             test.mockHelpers.unlinkSync = function(target) { deletedFILES.push(target); };
+            test.mockHelpers.rmdirSync  = function(target) { deletedFILES.push(target); };
 
             var context     = {result: result};
             var policy      = new PolicyUpload();
