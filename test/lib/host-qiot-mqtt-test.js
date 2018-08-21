@@ -471,8 +471,10 @@ describe('QiotMqttHost',function() {
                         'publish:/1/l/THING-TOKEN:{"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}:{"qos":0,"retain":true}'
                     ]]);
                     test.mockLogger.checkMockLogEntries([
+                        'DEBUG - start watchdog timer',
                         'DEBUG - start MQTT client',
                         'DEBUG - connected: {"ack":true}',
+                        'DEBUG - start watchdog timer',
                         'DEBUG - publish: {"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}',
                         'DEBUG - publish successful',
                         'DEBUG - mailbox delivery: {"id":1,"payload":"{\\"test\\":\\"TEST\\"}"}',

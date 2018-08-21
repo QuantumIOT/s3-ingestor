@@ -399,7 +399,8 @@ describe('PhoneHome',function() {
                         'DEBUG - host POST /1/r: {"identity":[{"type":"HOSTNAME","value":"OVERRIDEHOST"}],"label":"HOSTNAME-OVERRIDEHOST"}',
                         'DEBUG - host output: {}',
                         'DEBUG - host status: OK',
-                        'ERROR - phone home error - no registration received'
+                        'ERROR - phone home error - no registration received',
+                        'DEBUG - start watchdog timer'
                     ]);
                     test.mockHelpers.checkMockFiles([[phoneHome.contextFile,'default']]);
 

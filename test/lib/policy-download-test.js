@@ -59,7 +59,7 @@ describe('PolicyDownload',function() {
         it('should do nothing with no keys or files',function(done){
             var policy = new PolicyDownload();
 
-            policy.apply({},config.copySettings({target_directory: 'test'}),function(){
+            policy.apply({},config.copySettings({target_directory: 'test'}),null,function(){
                 done();
             },done);
         });
@@ -68,7 +68,7 @@ describe('PolicyDownload',function() {
             var policy = new PolicyDownload();
 
             downloadsFILES = ['test'];
-            policy.apply({},config.copySettings(),function(){
+            policy.apply({},config.copySettings(),null,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql(['downloads/test']);
                 renamedFILES.should.eql([]);
@@ -84,7 +84,7 @@ describe('PolicyDownload',function() {
 
             test.mockAwsSdk.deferAfterS3HeadObject = function(callback){ callback('headObject-error'); };
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql([]);
                 renamedFILES.should.eql([]);
@@ -107,7 +107,7 @@ describe('PolicyDownload',function() {
             test.mockAwsSdk.deferAfterS3HeadObject  = function(callback){ callback(null,{lastModified: 'test-timestamp'}); };
             test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback('getObject-error'); };
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql([]);
                 renamedFILES.should.eql([]);
@@ -136,7 +136,7 @@ describe('PolicyDownload',function() {
                 callback('writeFile-error')
             };
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 test.asyncDone(done,function(){
                     downloadsDIR.should.eql('downloads');
                     deletedFILES.should.eql([]);
@@ -159,7 +159,7 @@ describe('PolicyDownload',function() {
             test.mockAwsSdk.deferAfterS3HeadObject  = function(callback){ callback(null,{LastModified: 'test-timestamp',ContentLength: 9}); };
             test.mockAwsSdk.deferAfterS3GetObject   = function(callback){ callback('AWS error',null); };
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 test.asyncDone(done,function() {
                     downloadsDIR.should.eql('downloads');
                     deletedFILES.should.eql([]);
@@ -192,7 +192,7 @@ describe('PolicyDownload',function() {
                 return filename === 'downloads/test1.tmp' || filename === 'downloads/test2.tmp' ? {size: 8} : null;
             };
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 test.asyncDone(done,function() {
                     downloadsDIR.should.eql('downloads');
                     deletedFILES.should.eql(['downloads/test1.tmp','downloads/test2.tmp']);
@@ -227,7 +227,7 @@ describe('PolicyDownload',function() {
 
             test.mockHelpers.fileExists = function(filename){ return filename === 'downloads/test.tmp' ? {size: 9} : null; }; // NOTE - ensure that 'downloads/test.tmp' "exists"
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 downloadsDIR.should.eql('downloads');
                 deletedFILES.should.eql([]);
                 renamedFILES.should.eql([['downloads/test.tmp','downloads/test']]);
@@ -242,7 +242,7 @@ describe('PolicyDownload',function() {
 
                 test.mockHelpers.fileExists = function(filename){ return {size: 9} }; // NOTE - ensure that 'downloads/test.*' exists
 
-                policy.apply({},settings,function(){
+                policy.apply({},settings,null,function(){
                     test.asyncDone(done,function() {
                         downloadsDIR.should.eql('downloads');
                         deletedFILES.should.eql([]);
@@ -275,7 +275,7 @@ describe('PolicyDownload',function() {
 
             policy.lastTimestamps = { 'test': 'old-timestamp' };
 
-            policy.apply({},settings,function(){
+            policy.apply({},settings,null,function(){
                 test.asyncDone(done,function() {
                     deletedFILES.should.eql(['downloads/test']);
                     renamedFILES.should.eql([['downloads/test.tmp','downloads/test']]);
@@ -294,7 +294,7 @@ describe('PolicyDownload',function() {
         it('should record an error',function(done){
             var policy = new PolicyDownload();
 
-            policy.setupApplyState({},{},function() { true.should.not.be.ok; },function(err){
+            policy.setupApplyState({},{},null,function() { true.should.not.be.ok; },function(err){
                 err.should.eql('test-error');
                 test.mockLogger.checkMockLogEntries([
                     'DEBUG - delete: test',

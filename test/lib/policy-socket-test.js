@@ -58,7 +58,7 @@ describe('PolicySocket',function() {
             var context = {};
             var policy = new PolicySocket();
 
-            policy.apply(context,config.copySettings({socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply(context,config.copySettings({socket_port: 1234,socket_host: 'test-host'}),null,function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             context.result.should.eql({added: 0,skipped: 0,ignored: 0,sent: 0,errors: 0,status: 'pending'});
             policy.stats.should.eql({added: 0,skipped: 0,ignored: 0,sent: 0,errors: 0});
@@ -192,7 +192,7 @@ describe('PolicySocket',function() {
         it('should detect data on the socket and put in redis, but not for duplicates',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),null,function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
@@ -329,7 +329,7 @@ describe('PolicySocket',function() {
         it('should retrieve data from redis to deliver to the S3',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),null,function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
@@ -374,7 +374,7 @@ describe('PolicySocket',function() {
         it('should detect an s3.putObject error',function(done){
             var policy = new PolicySocket();
 
-            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
+            policy.apply({},config.copySettings({socket_queue: 'test-queue',socket_port: 1234,socket_host: 'test-host'}),null,function(){ true.should.be.ok; },function(err){ true.should.not.be.ok; });
 
             test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
