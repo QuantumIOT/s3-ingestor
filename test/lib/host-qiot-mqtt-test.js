@@ -439,4 +439,73 @@ describe('QiotMqttHost',function() {
         });
 
     });
+
+    describe('contact - watchdog', function () {
+        beforeEach(function(){
+            context                             = {qiot_thing_token: 'THING-TOKEN'};
+            config.settings.qiot_account_token  = new Buffer('ACCOUNT-NAME:ACCOUNT-SECRET').toString('base64');
+            config.settings.heartbeat_period    = 0;
+        });
+
+        afterEach(function(){
+            config.settings.heartbeat_period    = 3600;
+        });
+
+        it('should trigger a watchdog event if the timer is allowed to expire',function(done){
+            var emitter = new events.EventEmitter();
+            var host = new QiotMqttHost(emitter);
+
+            host.mailboxMessage = {id: 1,payload: JSON.stringify({test: 'TEST'})};
+
+            host.contact(context).then(function(context){
+                test.asyncMidpoint(done,function(){
+                    test.mockMQTT.checkCalls([[
+                        'new:{"host":"api.qiot.io","port":1883,"clientId":"THING-TOKEN","username":"ACCOUNT-NAME","password":"ACCOUNT-SECRET","keepalive":60,"clean":true}',
+                        'on:error',
+                        'on:reconnect',
+                        'on:close',
+                        'on:offline',
+                        'subscribe:1/m/THING-TOKEN:{"qos":0}',
+                        'on:connect',
+                        'on:message',
+                        'publish:/1/l/THING-TOKEN:{"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}:{"qos":0,"retain":true}'
+                    ]]);
+                    test.mockLogger.checkMockLogEntries([
+                        'DEBUG - start MQTT client',
+                        'DEBUG - connected: {"ack":true}',
+                        'DEBUG - publish: {"messages":[{"state":"unspecified","action":"unspecified","version":"unspecified","action_id":-1,"state_id":-1}]}',
+                        'DEBUG - publish successful',
+                        'DEBUG - mailbox delivery: {"id":1,"payload":"{\\"test\\":\\"TEST\\"}"}',
+                        'DEBUG - host POST /1/a/THING-TOKEN: {"status":"success","command_id":1}',
+                        'DEBUG - host status: OK'
+                    ]);
+                    context.should.eql({qiot_thing_token: 'THING-TOKEN',test: 'TEST',last_mailbox_id: 1});
+                    host.httpHost.messageQueue.should.eql([]);
+
+                    _.defer(function(){
+                        test.asyncDone(done,function(){
+                            test.mockMQTT.checkCalls([]);
+                            test.mockLogger.checkMockLogEntries([
+                            ]);
+                        });
+                    });
+                });
+            },done);
+
+            test.mockMQTT.clients.length.should.eql(1);
+            (!!test.mockMQTT.clients[0].topics['on:connect']).should.be.ok;
+            test.mockMQTT.clients[0].topics['on:connect']({ack: true});
+
+            (!!host.watchdogTimer).should.be.ok;
+            host.setWatchdogTimer();
+
+            _.defer(function(){
+                test.asyncMidpoint(done,function(){
+                    (!!test.mockMQTT.clients[0].topics.publish).should.be.ok;
+                    test.mockMQTT.clients[0].topics.publish(null,null);
+                })
+            });
+        });
+
+    });
 });
