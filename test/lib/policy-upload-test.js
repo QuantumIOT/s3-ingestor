@@ -1,4 +1,5 @@
 var _ = require('lodash');
+var fs = require('fs');
 var test = require('../test');
 
 var PolicyUpload = require(process.cwd() + '/lib/policy-upload');
@@ -33,7 +34,7 @@ describe('PolicyUpload',function() {
 
         resolveSeen     = false;
         rejectSeen      = [];
-        result          = {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0};
+        result          = {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0};
         test.configGuard.beginGuarding();
     });
 
@@ -62,10 +63,10 @@ describe('PolicyUpload',function() {
             var context     = {};
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),null,onResolve,onReject);
-            context.should.eql({action: 'error',error: 'GLOB error: **/*',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+            context.should.eql({action: 'error',error: 'GLOB error: **/*',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
             policy.apply(context,config.copySettings(),null,onResolve,onReject);
-            context.should.eql({action: 'error+error',error: 'GLOB error: **/*',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+            context.should.eql({action: 'error+error',error: 'GLOB error: **/*',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
             resolveSeen.should.eql(false);
             rejectSeen.should.eql(['GLOB error: **/*','GLOB error: **/*']);
@@ -79,7 +80,7 @@ describe('PolicyUpload',function() {
             var context     = {};
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),null,function(){
-                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                 done();
             },onReject);
         });
@@ -91,7 +92,7 @@ describe('PolicyUpload',function() {
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),null,function(){
                 test.mockLogger.checkMockLogEntries(["ERROR - SKIP ERROR: Error: ENOENT: no such file or directory, stat 'unknown.file'"]);
-                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                 done();
             },onReject);
         });
@@ -102,7 +103,7 @@ describe('PolicyUpload',function() {
             var context     = {};
             var policy      = new PolicyUpload();
             policy.apply(context,config.copySettings(),null,function(){
-                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                 done();
             },onReject);
         });
@@ -148,7 +149,7 @@ describe('PolicyUpload',function() {
 
             policy.apply(context,config.copySettings(),null,function(){
                 test.mockLogger.checkMockLogEntries(['DEBUG - ... ignore: test/data/test.json']);
-                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 1,unchanged: 0}});
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 1,unchanged: 0,delayed: 0}});
 
                 done();
             },onReject);
@@ -164,7 +165,7 @@ describe('PolicyUpload',function() {
 
             policy.apply(context,config.copySettings(),null,function(){ true.should.not.be.ok; done(); },function(err){
                 err.should.eql('listObjects-error');
-                context.should.eql({action: 'error',error: 'listObjects-error',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({action: 'error',error: 'listObjects-error',result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                 test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}]]);
                 test.mockLogger.checkMockLogEntries(['ERROR - policy error: listObjects-error']);
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
@@ -184,7 +185,7 @@ describe('PolicyUpload',function() {
 
             policy.apply(context,config.copySettings(),null,function(){ true.should.not.be.ok; done(); },function(err){
                 err.should.eql('upload-error');
-                context.should.eql({action: 'error',error: 'upload-error',result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({action: 'error',error: 'upload-error',result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
                     ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
@@ -199,6 +200,28 @@ describe('PolicyUpload',function() {
             });
         });
 
+        it('should delay uploading a file that was last modified too recently',function(done){
+            test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
+
+            var context     = {result: result};
+            var policy      = new PolicyUpload();
+            var settings    = config.copySettings();
+            var stats       = fs.statSync('./test/data/test.json');
+
+            test.mockHelpers.timeNOW = function() { return stats.mtime; };
+
+            settings.delay_upload = 15 * 60;
+
+            policy.lastSeenList.should.eql({});
+
+            policy.apply(context,settings,null,function(){
+                context.should.eql({result: {added: 0,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 1}});
+
+                test.mockLogger.checkMockLogEntries(['DEBUG - ... delayed: test/data/test.json']);
+                done();
+            },done);
+        });
+
         it('should upload a file and remember it in the "lastSeenList" then "skip" it and finally "update" it',function(done){
             test.mockGlob.lookup['**/*'] = ['test/data/test.json'];
 
@@ -211,7 +234,7 @@ describe('PolicyUpload',function() {
             policy.lastSeenList.should.eql({});
 
             policy.apply(context,config.copySettings(),null,function(){
-                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
                 var lastSeen = policy.lastSeenList['test/data/test.json'];
                 (!!lastSeen).should.be.ok;
@@ -223,23 +246,24 @@ describe('PolicyUpload',function() {
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
                 policy.apply(context,config.copySettings(),null,function(){
-                    context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 1}});
+                    context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 1,delayed: 0}});
                     test.mockLogger.checkMockLogEntries(['DEBUG - ... unchanged: test/data/test.json']);
 
                     test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size,LastModified: lastSeen.mtime}]}); };
+                    lastSeen = policy.lastSeenList['test/data/test.json'];
                     lastSeen.mtime = lastSeen.atime;
 
                     policy.apply(context,config.copySettings(),null,function(){
-                        context.should.eql({result: {added: 1,updated: 0,skipped: 1,ignored: 0,unchanged: 1}});
+                        context.should.eql({result: {added: 1,updated: 0,skipped: 1,ignored: 0,unchanged: 1,delayed: 0}});
                         test.mockAwsSdk.checkMockState([['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}]]);
                         test.mockLogger.checkMockLogEntries(['DEBUG - ... skip: test/data/test.json => test/data/test.json']);
 
-                        var lastSeen = policy.lastSeenList['test/data/test.json'];
+                        lastSeen = policy.lastSeenList['test/data/test.json'];
                         lastSeen.mtime = lastSeen.atime;
                         test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size + 1,LastModified: lastSeen.mtime}]}); };
 
                         policy.apply(context,config.copySettings(),null,function(){
-                            context.should.eql({result: {added: 1,updated: 1,skipped: 1,ignored: 0,unchanged: 1}});
+                            context.should.eql({result: {added: 1,updated: 1,skipped: 1,ignored: 0,unchanged: 1,delayed: 0}});
                             test.mockAwsSdk.checkMockState([
                                 ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
                                 ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
@@ -268,7 +292,7 @@ describe('PolicyUpload',function() {
             policy.lastSeenList.should.eql({});
 
             policy.apply(context,settings,null,function(){
-                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
                 var lastSeen = policy.lastSeenList['test/data/test.json'];
                 (!!lastSeen).should.be.ok;
@@ -280,7 +304,7 @@ describe('PolicyUpload',function() {
                 test.mockHelpers.checkMockFiles([[config.settings.aws_keys_file,'default']]);
 
                 policy.apply(context,settings,null,function(){
-                    context.should.eql({result: {added: 2,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                    context.should.eql({result: {added: 2,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                     test.mockLogger.checkMockLogEntries(['... add: test/data/test.json => test/data/test.json']);
                     test.mockAwsSdk.checkMockState([
                         ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
@@ -291,7 +315,7 @@ describe('PolicyUpload',function() {
                     lastSeen.mtime = lastSeen.atime;
 
                     policy.apply(context,settings,null,function(){
-                        context.should.eql({result: {added: 2,updated: 1,skipped: 0,ignored: 0,unchanged: 0}});
+                        context.should.eql({result: {added: 2,updated: 1,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                         test.mockLogger.checkMockLogEntries(['... update: test/data/test.json => test/data/test.json']);
                         test.mockAwsSdk.checkMockState([
                             ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
@@ -303,7 +327,7 @@ describe('PolicyUpload',function() {
                         test.mockAwsSdk.deferAfterS3ListObjects = function(callback){ callback(null,{Contents: [{Size: lastSeen.size,LastModified: lastSeen.mtime}]}); };
 
                         policy.apply(context,settings,null,function(){
-                            context.should.eql({result: {added: 2,updated: 2,skipped: 0,ignored: 0,unchanged: 0}});
+                            context.should.eql({result: {added: 2,updated: 2,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
                             test.mockAwsSdk.checkMockState([
                                 ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
                                 ['s3.upload',{Bucket: 'unknown-s3-bucket',Key: 'test/data/test.json',Body: true}]
@@ -336,7 +360,7 @@ describe('PolicyUpload',function() {
             policy.lastSeenList.should.eql({});
 
             policy.apply(context,settings,null,function(){
-                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
@@ -362,7 +386,7 @@ describe('PolicyUpload',function() {
             var policy      = new PolicyUpload();
             var settings    = config.copySettings();
 
-            test.mockHelpers.fileExists = function(filename) { return {isDirectory: function() {return filename == settings.move_after_upload}} };
+            test.mockHelpers.fileExists = function(filename) { return {isDirectory: function() {return filename === settings.move_after_upload}} };
 
             settings.input_remove_prefix    = 'test/data/';
             settings.output_key_prefix      = 'upload/';
@@ -371,7 +395,7 @@ describe('PolicyUpload',function() {
             policy.lastSeenList.should.eql({});
 
             policy.apply(context,settings,null,function(){
-                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'upload/test.json'}],
@@ -403,10 +427,10 @@ describe('PolicyUpload',function() {
             policy.lastSeenList.should.eql({});
 
             var watchdogCounter = 0;
-            var mockHost        = {setWatchdogTimer: function(){ watchdogCounter++; }}
+            var mockHost        = {setWatchdogTimer: function(){ watchdogCounter++; }};
 
             policy.apply(context,settings,mockHost,function(){
-                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'upload/test.json'}],
@@ -441,10 +465,10 @@ describe('PolicyUpload',function() {
             policy.lastSeenList.should.eql({});
 
             var watchdogCounter = 0;
-            var mockHost        = {setWatchdogTimer: function(){ watchdogCounter++; }}
+            var mockHost        = {setWatchdogTimer: function(){ watchdogCounter++; }};
 
             policy.apply(context,settings,mockHost,function(){
-                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0}});
+                context.should.eql({result: {added: 1,updated: 0,skipped: 0,ignored: 0,unchanged: 0,delayed: 0}});
 
                 test.mockAwsSdk.checkMockState([
                     ['s3.listObjects',{Bucket: 'unknown-s3-bucket',Prefix: 'test/data/test.json'}],
